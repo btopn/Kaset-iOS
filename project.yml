@@ -32,8 +32,11 @@ targets:
       - path: Navigation
       - path: Features
       - path: Player
+      - path: Views
       - path: Services
+      - path: ViewModels
       - path: Models
+      - path: Utilities
       - path: Resources
     settings:
       base:

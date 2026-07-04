@@ -1,0 +1,220 @@
+import Foundation
+
+/// Centralized accessibility identifiers for UI testing.
+/// Using an enum namespace prevents typos and enables autocomplete.
+enum AccessibilityID {
+    static func isAuxiliaryPlayerWindowIdentifier(_ identifier: String?) -> Bool {
+        identifier == VideoWindow.container || identifier == MiniPlayer.container
+    }
+
+    // MARK: - Sidebar
+
+    enum Sidebar {
+        static let container = "sidebar"
+        static let searchItem = "sidebar.search"
+        static let homeItem = "sidebar.home"
+        static let exploreItem = "sidebar.explore"
+        static let chartsItem = "sidebar.charts"
+        static let moodsAndGenresItem = "sidebar.moodsAndGenres"
+        static let newReleasesItem = "sidebar.newReleases"
+        static let podcastsItem = "sidebar.podcasts"
+        static let likedMusicItem = "sidebar.likedMusic"
+        static let libraryItem = "sidebar.library"
+        static let historyItem = "sidebar.history"
+    }
+
+    // MARK: - PlayerBar
+
+    enum PlayerBar {
+        static let playPauseButton = "playerBar.playPause"
+        static let previousButton = "playerBar.previous"
+        static let nextButton = "playerBar.next"
+        static let shuffleButton = "playerBar.shuffle"
+        static let repeatButton = "playerBar.repeat"
+        static let likeButton = "playerBar.like"
+        static let dislikeButton = "playerBar.dislike"
+        static let lyricsButton = "playerBar.lyrics"
+        static let queueButton = "playerBar.queue"
+        static let miniPlayerButton = "playerBar.miniPlayer"
+        static let videoButton = "playerBar.video"
+        static let airplayButton = "playerBar.airplayButton"
+        static let volumeSlider = "playerBar.volumeSlider"
+        static let trackTitle = "playerBar.trackTitle"
+        static let trackArtist = "playerBar.trackArtist"
+        static let thumbnail = "playerBar.thumbnail"
+    }
+
+    // MARK: - Mini Player
+
+    enum MiniPlayer {
+        static let container = "miniPlayer"
+        static let playPauseButton = "miniPlayer.playPause"
+        static let previousButton = "miniPlayer.previous"
+        static let nextButton = "miniPlayer.next"
+        static let likeButton = "miniPlayer.like"
+        static let shuffleButton = "miniPlayer.shuffle"
+        static let repeatButton = "miniPlayer.repeat"
+        static let closeButton = "miniPlayer.close"
+        static let minimizeButton = "miniPlayer.minimize"
+        static let expandButton = "miniPlayer.expand"
+        static let panelToggleButton = "miniPlayer.panelToggle"
+        static let returnToKasetButton = "miniPlayer.returnToKaset"
+        static let lyricsButton = "miniPlayer.lyrics"
+        static let lyricsView = "miniPlayer.lyricsView"
+        static let queueButton = "miniPlayer.queue"
+        static let airplayButton = "miniPlayer.airplay"
+        static let volumeButton = "miniPlayer.volumeButton"
+        static let seekSlider = "miniPlayer.seekSlider"
+        static let trackTitle = "miniPlayer.trackTitle"
+        static let trackArtist = "miniPlayer.trackArtist"
+    }
+
+    // MARK: - Queue View
+
+    enum Queue {
+        static let container = "queueView"
+        static let scrollView = "queueView.scrollView"
+        static let clearButton = "queueView.clearButton"
+        static let saveToPlaylistButton = "queueView.saveToPlaylistButton"
+        static let removeDuplicatesButton = "queueView.removeDuplicatesButton"
+        static let emptyState = "queueView.emptyState"
+        static let refineButton = "queueView.refineButton"
+        static let suggestionButton = "queueView.suggestionButton"
+
+        static func row(index: Int) -> String {
+            "queueView.row.\(index)"
+        }
+    }
+
+    // MARK: - Lyrics
+
+    enum Lyrics {
+        static let fallbackPanel = "lyrics.fallbackPanel"
+    }
+
+    // MARK: - HomeView
+
+    enum Home {
+        static let container = "homeView"
+        static let scrollView = "homeView.scrollView"
+        static let loadingIndicator = "homeView.loading"
+        static let errorView = "homeView.error"
+
+        static func section(index: Int) -> String {
+            "homeView.section.\(index)"
+        }
+
+        static func sectionTitle(index: Int) -> String {
+            "homeView.section.\(index).title"
+        }
+
+        static func item(sectionIndex: Int, itemIndex: Int) -> String {
+            "homeView.section.\(sectionIndex).item.\(itemIndex)"
+        }
+    }
+
+    // MARK: - SearchView
+
+    enum Search {
+        static let container = "searchView"
+        static let searchField = "searchView.searchField"
+        static let clearButton = "searchView.clearButton"
+        static let suggestionsContainer = "searchView.suggestions"
+        static let resultsContainer = "searchView.results"
+        static let emptyState = "searchView.emptyState"
+        static let noResults = "searchView.noResults"
+        static let loadingIndicator = "searchView.loading"
+
+        static func suggestion(index: Int) -> String {
+            "searchView.suggestion.\(index)"
+        }
+
+        static func filterChip(_ filter: String) -> String {
+            "searchView.filter.\(filter)"
+        }
+
+        static func resultRow(index: Int) -> String {
+            "searchView.result.\(index)"
+        }
+    }
+
+    // MARK: - LibraryView
+
+    enum Library {
+        static let container = "libraryView"
+        static let scrollView = "libraryView.scrollView"
+        static let loadingIndicator = "libraryView.loading"
+        static let emptyState = "libraryView.emptyState"
+
+        static func playlistRow(index: Int) -> String {
+            "libraryView.playlist.\(index)"
+        }
+    }
+
+    // MARK: - PlaylistDetailView
+
+    enum PlaylistDetail {
+        static let container = "playlistDetailView"
+        static let header = "playlistDetailView.header"
+        static let playButton = "playlistDetailView.playButton"
+        static let shuffleButton = "playlistDetailView.shuffleButton"
+        static let tracksList = "playlistDetailView.tracksList"
+        static let loadingIndicator = "playlistDetailView.loading"
+
+        static func trackRow(index: Int) -> String {
+            "playlistDetailView.track.\(index)"
+        }
+    }
+
+    // MARK: - OnboardingView
+
+    enum Onboarding {
+        static let container = "onboardingView"
+        static let signInButton = "onboardingView.signInButton"
+    }
+
+    // MARK: - Main Window
+
+    enum MainWindow {
+        static let container = "mainWindow"
+        static let initializingView = "mainWindow.initializing"
+        static let aiButton = "mainWindow.aiButton"
+        static let commandBar = "mainWindow.commandBar"
+        static let commandBarOverlay = "mainWindow.commandBarOverlay"
+        static let commandBarInput = "mainWindow.commandBarInput"
+    }
+
+    // MARK: - Explore View
+
+    enum Explore {
+        static let container = "exploreView"
+        static let scrollView = "exploreView.scrollView"
+        static let loadingIndicator = "exploreView.loading"
+    }
+
+    // MARK: - Liked Music View
+
+    enum LikedMusic {
+        static let container = "likedMusicView"
+        static let scrollView = "likedMusicView.scrollView"
+        static let loadingIndicator = "likedMusicView.loading"
+        static let emptyState = "likedMusicView.emptyState"
+
+        static func songRow(index: Int) -> String {
+            "likedMusicView.song.\(index)"
+        }
+    }
+
+    // MARK: - History View
+
+    enum History {
+        static let scrollView = "historyView.scrollView"
+    }
+
+    // MARK: - Video Window
+
+    enum VideoWindow {
+        static let container = "videoWindow"
+        static let videoContent = "videoWindow.content"
+    }
+}
