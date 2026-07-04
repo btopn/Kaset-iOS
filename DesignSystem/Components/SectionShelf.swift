@@ -68,9 +68,55 @@ struct SectionCard: View {
     var rank: Int? = nil
 
     @Environment(PlayerService.self) private var playerService
-    @Environment(\.client) private var client
+    @Environment(\.presentNowPlaying) private var presentNowPlaying
 
     var body: some View {
+        switch self.item {
+        case .song:
+            Button {
+                self.playSong()
+            } label: {
+                self.cardContent
+            }
+            .buttonStyle(.interactiveCard(showShadow: false, hoverScale: 1, pressScale: 0.97))
+            .contextMenu {
+                self.contextMenu
+            }
+        case let .album(album):
+            if let playlist = self.navigationPlaylist(for: album) {
+                NavigationLink(value: playlist) {
+                    self.cardContent
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    self.contextMenu
+                }
+            } else {
+                self.cardContent
+                    .contextMenu {
+                        self.contextMenu
+                    }
+            }
+        case let .playlist(playlist):
+            NavigationLink(value: playlist) {
+                self.cardContent
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                self.contextMenu
+            }
+        case let .artist(artist):
+            NavigationLink(value: artist) {
+                self.cardContent
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                self.contextMenu
+            }
+        }
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: Theme.spacingS) {
             ZStack(alignment: .topLeading) {
                 ArtworkView(
@@ -78,6 +124,11 @@ struct SectionCard: View {
                     targetSize: .init(width: Theme.ArtworkSize.cardLarge, height: Theme.ArtworkSize.cardLarge),
                     cornerRadius: Theme.cornerRadiusL
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: Theme.cornerRadiusL, style: .continuous)
+                        .stroke(.white.opacity(0.08), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.24), radius: 16, x: 0, y: 10)
 
                 if let rank {
                     Text("\(rank)")
@@ -85,8 +136,18 @@ struct SectionCard: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, Theme.spacingS)
                         .padding(.vertical, Theme.spacingXS)
-                        .background(.ultraThinMaterial, in: .capsule)
+                        .compatGlass(tint: Theme.Colors.glassTint, in: .capsule)
                         .padding(Theme.spacingS)
+                }
+
+                if case let .song(song) = self.item {
+                    Image(systemName: self.playerService.isCurrentTrack(song) && self.playerService.isPlaying ? "waveform" : "play.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .compatGlass(interactive: false, tint: Theme.Colors.glassTint, in: .circle)
+                        .padding(Theme.spacingS)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 }
             }
 
@@ -108,27 +169,24 @@ struct SectionCard: View {
             .frame(width: Theme.ArtworkSize.cardLarge, alignment: .leading)
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            self.handleTap()
-        }
-        .contextMenu {
-            self.contextMenu
-        }
     }
 
-    private func handleTap() {
-        switch self.item {
-        case let .song(song):
-            Task { await self.playerService.play(song: song) }
-            HapticService.playback()
-        case let .album(album):
-            // Navigate via the album's underlying playlist representation.
-            NavigationBus.shared.openAlbum(album)
-        case let .playlist(playlist):
-            NavigationBus.shared.openPlaylist(playlist)
-        case let .artist(artist):
-            NavigationBus.shared.openArtist(artist)
-        }
+    private func playSong() {
+        guard case let .song(song) = self.item else { return }
+        self.presentNowPlaying()
+        Task { await self.playerService.play(song: song) }
+        HapticService.playback()
+    }
+
+    private func navigationPlaylist(for album: Album) -> Playlist? {
+        guard album.hasNavigableId else { return nil }
+        return Playlist(
+            id: album.id,
+            title: album.title,
+            description: nil,
+            thumbnailURL: album.thumbnailURL,
+            trackCount: album.trackCount
+        )
     }
 
     @ViewBuilder
@@ -136,6 +194,7 @@ struct SectionCard: View {
         switch self.item {
         case let .song(song):
             Button {
+                self.presentNowPlaying()
                 Task { await self.playerService.play(song: song) }
             } label: {
                 Label("Play", systemImage: "play.fill")
@@ -148,62 +207,5 @@ struct SectionCard: View {
         case let .artist(artist):
             ShareContextMenu.menuItem(for: artist)
         }
-    }
-}
-
-// MARK: - NavigationBus
-
-/// A lightweight, centralized navigation bus for card taps that need to push a
-/// destination onto whichever tab's `NavigationStack` is active.
-///
-/// Each tab's root view registers its `NavigationPath` here on appear; card
-/// components call `NavigationBus.shared.openPlaylist(...)` etc. without
-/// needing a path passed down.
-@MainActor
-final class NavigationBus: ObservableObject {
-    static let shared = NavigationBus()
-
-    /// Generic navigation destinations pushed onto the active path.
-    enum Destination: Equatable {
-        case playlist(Playlist)
-        case artist(Artist)
-        case album(Album)
-        case mood(MoodCategory)
-    }
-
-    @Published private(set) var pendingDestination: Destination?
-
-    private init() {}
-
-    func openPlaylist(_ playlist: Playlist) {
-        self.pendingDestination = .playlist(playlist)
-    }
-
-    func openArtist(_ artist: Artist) {
-        self.pendingDestination = .artist(artist)
-    }
-
-    func openAlbum(_ album: Album) {
-        // Albums navigate as a playlist with an album-prefix ID when navigable.
-        if album.hasNavigableId {
-            self.pendingDestination = .playlist(Playlist(
-                id: album.id,
-                title: album.title,
-                description: nil,
-                thumbnailURL: album.thumbnailURL,
-                trackCount: album.trackCount
-            ))
-        }
-    }
-
-    func openMood(_ mood: MoodCategory) {
-        self.pendingDestination = .mood(mood)
-    }
-
-    /// Consumes the pending destination so a host can append it once.
-    func consume() -> Destination? {
-        let value = self.pendingDestination
-        self.pendingDestination = nil
-        return value
     }
 }

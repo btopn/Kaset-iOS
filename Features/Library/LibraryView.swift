@@ -26,6 +26,7 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationDestinations(client: self.viewModel.client)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -41,6 +42,7 @@ struct LibraryView: View {
                 }
             }
         }
+        .background(Theme.Colors.background.ignoresSafeArea())
         .task {
             if self.viewModel.loadingState == .idle {
                 await self.viewModel.load()
@@ -48,9 +50,6 @@ struct LibraryView: View {
         }
         .refreshable {
             await self.viewModel.refresh()
-        }
-        .onChange(of: NavigationBus.shared.pendingDestination) { _, _ in
-            self.consumePendingDestination()
         }
     }
 
@@ -74,21 +73,25 @@ struct LibraryView: View {
                 SectionShelf(title: "Artists", items: self.viewModel.artists.map { HomeSectionItem.artist($0) })
             }
         }
-        .padding(.vertical, Theme.spacingM)
+        .padding(.top, Theme.spacingM)
+        .padding(.bottom, 132)
     }
 
     private func libraryPlaylistCard(_ playlist: Playlist) -> some View {
-        VStack(alignment: .leading, spacing: Theme.spacingS) {
-            ArtworkView(
-                url: playlist.thumbnailURL,
-                targetSize: .init(width: Theme.ArtworkSize.cardLarge, height: Theme.ArtworkSize.cardLarge),
-                cornerRadius: Theme.cornerRadiusL
-            )
-            Text(playlist.title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
+        NavigationLink(value: playlist) {
+            VStack(alignment: .leading, spacing: Theme.spacingS) {
+                ArtworkView(
+                    url: playlist.thumbnailURL,
+                    targetSize: .init(width: Theme.ArtworkSize.cardLarge, height: Theme.ArtworkSize.cardLarge),
+                    cornerRadius: Theme.cornerRadiusL
+                )
+                Text(playlist.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
                 .frame(width: Theme.ArtworkSize.cardLarge, alignment: .leading)
+            }
         }
+        .buttonStyle(.plain)
         .contextMenu {
             if playlist.canDelete, let client {
                 Button(role: .destructive) {
@@ -104,23 +107,6 @@ struct LibraryView: View {
                 }
             }
             ShareContextMenu.menuItem(for: playlist)
-        }
-        .onTapGesture {
-            NavigationBus.shared.openPlaylist(playlist)
-        }
-    }
-
-    private func consumePendingDestination() {
-        guard let destination = NavigationBus.shared.consume() else { return }
-        switch destination {
-        case let .playlist(playlist):
-            self.navigationPath.append(playlist)
-        case let .artist(artist):
-            self.navigationPath.append(artist)
-        case let .mood(mood):
-            self.navigationPath.append(mood)
-        case .album:
-            break
         }
     }
 }

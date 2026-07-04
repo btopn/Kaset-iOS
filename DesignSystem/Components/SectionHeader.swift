@@ -18,6 +18,7 @@ struct SectionHeader: View {
                 Text(self.title)
                     .font(.title2)
                     .fontWeight(.bold)
+                    .foregroundStyle(.primary)
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)

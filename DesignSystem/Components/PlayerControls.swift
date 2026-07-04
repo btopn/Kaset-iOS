@@ -11,7 +11,7 @@ struct PlayerControls: View {
 
     var size: ControlSize = .standard
 
-    enum ControlSize {
+    enum ControlSize: Equatable {
         case compact
         case standard
         case large
@@ -39,7 +39,7 @@ struct PlayerControls: View {
         } label: {
             Image(systemName: "shuffle")
                 .frame(width: self.size.secondary, height: self.size.secondary)
-                .foregroundStyle(self.playerService.shuffleEnabled ? Color.accentColor : .primary)
+                .foregroundStyle(self.playerService.shuffleEnabled ? Theme.Colors.accent : .primary)
         }
         .buttonStyle(.plain)
     }
@@ -63,8 +63,8 @@ struct PlayerControls: View {
             Image(systemName: self.playerService.isPlaying ? "pause.fill" : "play.fill")
                 .font(.system(size: self.size.primary * 0.5, weight: .semibold))
                 .frame(width: self.size.primary, height: self.size.primary)
-                .background(Color.accentColor, in: Circle())
-                .foregroundStyle(.white)
+                .foregroundStyle(self.size == .large ? Theme.Colors.accent : .white)
+                .compatGlass(interactive: true, tint: self.primaryButtonTint, in: .circle)
         }
         .buttonStyle(.plain)
     }
@@ -87,9 +87,13 @@ struct PlayerControls: View {
         } label: {
             Image(systemName: self.repeatSymbol)
                 .frame(width: self.size.secondary, height: self.size.secondary)
-                .foregroundStyle(self.playerService.repeatMode != .off ? Color.accentColor : .primary)
+                .foregroundStyle(self.playerService.repeatMode != .off ? Theme.Colors.accent : .primary)
         }
         .buttonStyle(.plain)
+    }
+
+    private var primaryButtonTint: Color {
+        self.size == .large ? Theme.Colors.glassTint : Theme.Colors.accent.opacity(0.48)
     }
 
     private var repeatSymbol: String {

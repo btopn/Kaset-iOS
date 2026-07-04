@@ -41,12 +41,20 @@ struct RootView: View {
         ZStack(alignment: .bottom) {
             RootTabView(selection: self.$selectedTab, client: client)
                 .hostingPlaylistCoordinators()
+                .environment(\.presentNowPlaying) {
+                    withAnimation(AppAnimation.spring) {
+                        self.isNowPlayingPresented = true
+                    }
+                }
 
             // Mini player bar pinned above the tab bar; safe-area-aware.
             PlayerBar(isNowPlayingPresented: self.$isNowPlayingPresented)
                 .padding(.bottom, 49) // approx. tab bar height
                 .ignoresSafeArea(.keyboard)
         }
+        .background(Theme.Colors.background.ignoresSafeArea())
+        .preferredColorScheme(.dark)
+        .tint(Theme.Colors.accent)
         .sheet(isPresented: self.$isNowPlayingPresented) {
             NowPlayingView()
                 .presentationDragIndicator(.visible)

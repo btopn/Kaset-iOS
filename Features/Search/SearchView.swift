@@ -30,15 +30,14 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("Search")
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationDestinations(client: self.viewModel.client)
         }
+        .background(Theme.Colors.background.ignoresSafeArea())
         .searchable(text: self.$viewModel.query, prompt: "Songs, albums, artists, playlists")
         .submitLabel(.search)
         .onSubmit(of: .search) {
             Task { await self.viewModel.searchImmediately() }
-        }
-        .onChange(of: NavigationBus.shared.pendingDestination) { _, _ in
-            self.consumePendingDestination()
         }
     }
 
@@ -74,20 +73,8 @@ struct SearchView: View {
                 SectionShelf(title: "Playlists", items: results.playlists.map { HomeSectionItem.playlist($0) })
             }
         }
-        .padding(.vertical, Theme.spacingM)
+        .padding(.top, Theme.spacingM)
+        .padding(.bottom, 132)
     }
 
-    private func consumePendingDestination() {
-        guard let destination = NavigationBus.shared.consume() else { return }
-        switch destination {
-        case let .playlist(playlist):
-            self.navigationPath.append(playlist)
-        case let .artist(artist):
-            self.navigationPath.append(artist)
-        case let .mood(mood):
-            self.navigationPath.append(mood)
-        case .album:
-            break
-        }
-    }
 }

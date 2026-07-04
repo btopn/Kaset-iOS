@@ -20,23 +20,13 @@ struct ArtistDiscographyView: View {
             case .loaded, .loadingMore:
                 LazyVGrid(columns: self.columns, spacing: Theme.spacingL) {
                     ForEach(self.viewModel.albums) { album in
-                        VStack(alignment: .leading, spacing: Theme.spacingS) {
-                            ArtworkView(
-                                url: album.thumbnailURL,
-                                targetSize: .init(width: 150, height: 150),
-                                cornerRadius: Theme.cornerRadiusL
-                            )
-                            Text(album.title)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(2)
-                            if let year = album.year {
-                                Text(year)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                        if let playlist = self.navigationPlaylist(for: album) {
+                            NavigationLink(value: playlist) {
+                                self.albumCard(album)
                             }
-                        }
-                        .onTapGesture {
-                            NavigationBus.shared.openAlbum(album)
+                            .buttonStyle(.plain)
+                        } else {
+                            self.albumCard(album)
                         }
                     }
                 }
@@ -50,5 +40,35 @@ struct ArtistDiscographyView: View {
                 await self.viewModel.load()
             }
         }
+    }
+
+    private func albumCard(_ album: Album) -> some View {
+        VStack(alignment: .leading, spacing: Theme.spacingS) {
+            ArtworkView(
+                url: album.thumbnailURL,
+                targetSize: .init(width: 150, height: 150),
+                cornerRadius: Theme.cornerRadiusL
+            )
+            Text(album.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2)
+            if let year = album.year {
+                Text(year)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func navigationPlaylist(for album: Album) -> Playlist? {
+        guard album.hasNavigableId else { return nil }
+        return Playlist(
+            id: album.id,
+            title: album.title,
+            description: nil,
+            thumbnailURL: album.thumbnailURL,
+            trackCount: album.trackCount,
+            author: Artist.inline(name: album.artistsDisplay, namespace: "album-artist")
+        )
     }
 }

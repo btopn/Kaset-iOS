@@ -21,6 +21,7 @@ struct SongRow: View {
     @Environment(FavoritesManager.self) private var favoritesManager
     @Environment(SongLikeStatusManager.self) private var likeStatusManager
     @Environment(\.client) private var client
+    @Environment(\.presentNowPlaying) private var presentNowPlaying
 
     var body: some View {
         HStack(spacing: Theme.spacingM) {
@@ -80,8 +81,11 @@ struct SongRow: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            Task { await self.playerService.play(song: self.song) }
-            HapticService.playback()
+            self.playSong()
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: Text("Play")) {
+            self.playSong()
         }
         .contextMenu {
             self.contextMenu
@@ -93,7 +97,7 @@ struct SongRow: View {
     @ViewBuilder
     private var contextMenu: some View {
         Button {
-            Task { await self.playerService.play(song: self.song) }
+            self.playSong()
         } label: {
             Label("Play", systemImage: "play.fill")
         }
@@ -111,5 +115,11 @@ struct SongRow: View {
         Divider()
 
         ShareContextMenu.menuItem(for: self.song)
+    }
+
+    private func playSong() {
+        self.presentNowPlaying()
+        Task { await self.playerService.play(song: self.song) }
+        HapticService.playback()
     }
 }

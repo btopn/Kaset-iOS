@@ -18,34 +18,27 @@ struct NowPlayingView: View {
     @State private var showLyrics = false
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Ambient backdrop derived from artwork (subtle tint).
-            if let url = self.playerService.currentTrack?.thumbnailURL {
-                ArtworkView(url: url, targetSize: .init(width: 60, height: 60), cornerRadius: 0)
-                    .blur(radius: 60)
-                    .opacity(0.5)
-                    .ignoresSafeArea()
-            } else {
-                Color(.systemBackground).ignoresSafeArea()
-            }
+        ZStack {
+            self.backgroundLayer
 
             VStack(spacing: 0) {
-                self.grabber
+                self.topBar
 
                 ScrollView {
-                    VStack(spacing: Theme.spacingXL) {
+                    VStack(spacing: Theme.spacingXXL) {
                         self.artworkOrVideo
                         self.trackInfo
-                        ScrubBar(showsTimes: true)
-                        PlayerControls(size: .large)
+                        self.transportPanel
                         self.auxiliaryButtons
                     }
                     .padding(.horizontal, Theme.spacingXL)
-                    .padding(.top, Theme.spacingL)
+                    .padding(.top, Theme.spacingXXL)
                     .padding(.bottom, Theme.spacingXXXL)
                 }
+                .scrollIndicators(.hidden)
             }
         }
+        .foregroundStyle(.white)
         // The hidden WebView keeps DRM audio playing through this view's lifetime.
         .background(
             Group {
@@ -67,14 +60,63 @@ struct NowPlayingView: View {
         }
     }
 
-    private var grabber: some View {
-        HStack {
-            Spacer()
-            Capsule()
-                .fill(Color.secondary.opacity(0.4))
-                .frame(width: 36, height: 5)
-            Spacer()
+    private var backgroundLayer: some View {
+        ZStack {
+            Theme.Colors.background.ignoresSafeArea()
+
+            if let url = self.playerService.currentTrack?.thumbnailURL {
+                ArtworkView(url: url, targetSize: .init(width: 260, height: 260), cornerRadius: 36)
+                    .scaleEffect(1.85)
+                    .blur(radius: 72)
+                    .saturation(1.35)
+                    .opacity(0.55)
+                    .ignoresSafeArea()
+            }
+
+            LinearGradient(
+                colors: [
+                    .black.opacity(0.08),
+                    Theme.Colors.background.opacity(0.72),
+                    Theme.Colors.background,
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
         }
+    }
+
+    private var topBar: some View {
+        HStack {
+            Button {
+                self.dismiss()
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 38, height: 38)
+                    .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text("Now Playing")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Button {
+                self.showQueue = true
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .bold))
+                    .frame(width: 38, height: 38)
+                    .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Theme.spacingXL)
         .padding(.top, Theme.spacingS)
     }
 
@@ -87,9 +129,16 @@ struct NowPlayingView: View {
                 targetSize: .init(width: Theme.ArtworkSize.nowPlaying, height: Theme.ArtworkSize.nowPlaying),
                 cornerRadius: Theme.cornerRadiusXL
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.cornerRadiusXL, style: .continuous)
+                    .stroke(.white.opacity(0.12), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.45), radius: 36, x: 0, y: 22)
         }
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
+        .scaleEffect(self.playerService.state == .loading ? 0.97 : 1)
+        .animation(AppAnimation.spring, value: self.playerService.state)
         .onTapGesture {
             // Toggle the video surface for tracks that have one.
             if self.playerService.currentTrackHasVideo {
@@ -102,7 +151,7 @@ struct NowPlayingView: View {
     private var trackInfo: some View {
         VStack(spacing: Theme.spacingXS) {
             Text(self.playerService.currentTrack?.title ?? "")
-                .font(.title2.bold())
+                .font(.title2.weight(.bold))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
             Text(self.playerService.currentTrack?.artistsDisplay ?? "")
@@ -112,33 +161,46 @@ struct NowPlayingView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var auxiliaryButtons: some View {
-        HStack(spacing: Theme.spacingXXXL) {
-            Button {
-                self.showLyrics = true
-            } label: {
-                Image(systemName: "text.quote")
-                    .font(.title3)
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                self.playerService.showAirPlayPicker()
-                HapticService.toggle()
-            } label: {
-                Image(systemName: "airplayaudio")
-                    .font(.title3)
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                self.showQueue = true
-            } label: {
-                Image(systemName: "list.bullet")
-                    .font(.title3)
-            }
-            .buttonStyle(.plain)
+    private var transportPanel: some View {
+        VStack(spacing: Theme.spacingL) {
+            ScrubBar(showsTimes: true)
+            PlayerControls(size: .large)
         }
-        .padding(.top, Theme.spacingS)
+        .padding(Theme.spacingL)
+        .compatGlass(tint: Theme.Colors.glassTint, in: .rect(cornerRadius: 28))
+    }
+
+    private var auxiliaryButtons: some View {
+        CompatGlassContainer(spacing: Theme.spacingM) {
+            HStack(spacing: Theme.spacingM) {
+                self.glassIconButton(systemName: "text.quote") {
+                    self.showLyrics = true
+                }
+
+                self.glassIconButton(systemName: "airplayaudio") {
+                    self.playerService.showAirPlayPicker()
+                    HapticService.toggle()
+                }
+
+                self.glassIconButton(systemName: self.playerService.currentTrackInLibrary ? "checkmark.circle.fill" : "plus.circle") {
+                    self.playerService.toggleLibraryStatus()
+                    HapticService.toggle()
+                }
+
+                self.glassIconButton(systemName: "list.bullet") {
+                    self.showQueue = true
+                }
+            }
+        }
+    }
+
+    private func glassIconButton(systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 52, height: 52)
+                .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -42,5 +42,9 @@ struct RootTabView: View {
                 }
                 .tag(TabItem.library)
         }
+        .background(Theme.Colors.background.ignoresSafeArea())
+        .toolbarBackground(Theme.Colors.background.opacity(0.78), for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
+        .tint(Theme.Colors.accent)
     }
 }

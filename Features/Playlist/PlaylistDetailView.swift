@@ -14,6 +14,7 @@ struct PlaylistDetailView: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
     @Environment(SongLikeStatusManager.self) private var likeStatusManager
+    @Environment(\.presentNowPlaying) private var presentNowPlaying
 
     var body: some View {
         ScrollView {
@@ -76,6 +77,7 @@ struct PlaylistDetailView: View {
                 Button {
                     let songs = self.viewModel.playlistDetail?.tracks ?? []
                     guard !songs.isEmpty else { return }
+                    self.presentNowPlaying()
                     Task {
                         await self.playerService.playQueue(songs, startingAt: 0)
                     }

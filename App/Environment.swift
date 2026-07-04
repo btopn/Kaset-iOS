@@ -22,6 +22,9 @@ extension EnvironmentValues {
 
     /// The shared YouTube Music client, injected once at the root.
     @Entry var client: (any YTMusicClientProtocol)? = nil
+
+    /// Opens the full now-playing surface from shared song/card components.
+    @Entry var presentNowPlaying: () -> Void = {}
 }
 
 // MARK: - TabItem

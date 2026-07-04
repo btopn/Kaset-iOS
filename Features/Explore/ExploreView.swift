@@ -22,8 +22,10 @@ struct ExploreView: View {
                 }
             }
             .navigationTitle("Explore")
+            .toolbarBackground(.hidden, for: .navigationBar)
             .navigationDestinations(client: self.viewModel.client)
         }
+        .background(Theme.Colors.background.ignoresSafeArea())
         .task {
             if self.viewModel.loadingState == .idle {
                 await self.viewModel.load()
@@ -31,9 +33,6 @@ struct ExploreView: View {
         }
         .refreshable {
             await self.viewModel.refresh()
-        }
-        .onChange(of: NavigationBus.shared.pendingDestination) { _, _ in
-            self.consumePendingDestination()
         }
     }
 
@@ -44,21 +43,10 @@ struct ExploreView: View {
                     SectionShelf(title: section.title, items: section.items, isChart: section.isChart)
                 }
             }
-            .padding(.vertical, Theme.spacingM)
+            .padding(.top, Theme.spacingM)
+            .padding(.bottom, 132)
         }
+        .background(Theme.Colors.background.ignoresSafeArea())
     }
 
-    private func consumePendingDestination() {
-        guard let destination = NavigationBus.shared.consume() else { return }
-        switch destination {
-        case let .playlist(playlist):
-            self.navigationPath.append(playlist)
-        case let .artist(artist):
-            self.navigationPath.append(artist)
-        case let .mood(mood):
-            self.navigationPath.append(mood)
-        case .album:
-            break
-        }
-    }
 }

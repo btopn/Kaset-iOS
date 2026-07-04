@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 struct FavoritesSection: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
+    @Environment(\.presentNowPlaying) private var presentNowPlaying
     @State private var draggedItem: FavoriteItem?
     @State private var navigationPath: NavigationPath?
 
@@ -65,6 +66,7 @@ struct FavoritesSection: View {
     private func handleTap(_ item: FavoriteItem) {
         switch item.itemType {
         case let .song(song):
+            self.presentNowPlaying()
             Task {
                 await self.playerService.playWithRadio(song: song)
             }
@@ -109,6 +111,7 @@ struct FavoritesSection: View {
         // Play button for songs
         if case let .song(song) = item.itemType {
             Button {
+                self.presentNowPlaying()
                 Task { await self.playerService.play(song: song) }
             } label: {
                 Label("Play", systemImage: "play.fill")

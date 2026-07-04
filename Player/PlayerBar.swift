@@ -20,60 +20,91 @@ struct PlayerBar: View {
 
     private var content: some View {
         VStack(spacing: 0) {
-            HStack(spacing: Theme.spacingM) {
-                ArtworkView(
-                    url: self.playerService.currentTrack?.thumbnailURL,
-                    targetSize: .init(width: 44, height: 44),
-                    cornerRadius: Theme.cornerRadiusS
-                )
+            VStack(spacing: Theme.spacingXS) {
+                HStack(spacing: Theme.spacingM) {
+                    ArtworkView(
+                        url: self.playerService.currentTrack?.thumbnailURL,
+                        targetSize: .init(width: 42, height: 42),
+                        cornerRadius: 10
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(.white.opacity(0.1), lineWidth: 1)
+                    }
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(self.playerService.currentTrack?.title ?? "Loading…")
-                        .font(.footnote.weight(.semibold))
-                        .lineLimit(1)
-                    Text(self.playerService.currentTrack?.artistsDisplay ?? "")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(self.playerService.currentTrack?.title ?? "Loading...")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(self.playerService.currentTrack?.artistsDisplay ?? "")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: Theme.spacingS)
+
+                    self.playPauseButton
+                    self.nextButton
                 }
 
-                Spacer()
-
-                Button {
-                    Task { await self.playerService.playPause() }
-                    HapticService.playback()
-                } label: {
-                    Image(systemName: self.playerService.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title3)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    Task { await self.playerService.next() }
-                    HapticService.playback()
-                } label: {
-                    Image(systemName: "forward.fill")
-                        .font(.body)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
+                self.progressLine
             }
             .padding(.horizontal, Theme.spacingM)
-            .padding(.vertical, Theme.spacingS)
-            .contentShape(Rectangle())
+            .padding(.vertical, 10)
+            .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .capsule)
+            .shadow(color: .black.opacity(0.36), radius: 22, x: 0, y: 12)
+            .contentShape(Capsule())
             .onTapGesture {
-                self.isNowPlayingPresented = true
+                withAnimation(AppAnimation.spring) {
+                    self.isNowPlayingPresented = true
+                }
             }
-
-            // Thin progress indicator beneath the bar.
-            ProgressView(value: self.progressFraction)
-                .progressViewStyle(.linear)
-                .tint(.accentColor)
-                .padding(.horizontal, Theme.spacingM)
-                .padding(.bottom, 2)
         }
-        .background(.bar)
+        .padding(.horizontal, Theme.spacingM)
+        .padding(.bottom, Theme.spacingS)
+    }
+
+    private var playPauseButton: some View {
+        Button {
+            Task { await self.playerService.playPause() }
+            HapticService.playback()
+        } label: {
+            Image(systemName: self.playerService.isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.primary)
+                .frame(width: 34, height: 34)
+                .compatGlass(interactive: true, tint: Theme.Colors.surfaceStrong, in: .circle)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var nextButton: some View {
+        Button {
+            Task { await self.playerService.next() }
+            HapticService.playback()
+        } label: {
+            Image(systemName: "forward.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 34, height: 34)
+                .compatGlass(interactive: true, tint: Theme.Colors.surfaceStrong, in: .circle)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var progressLine: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.white.opacity(0.16))
+                Capsule()
+                    .fill(Theme.Colors.accent)
+                    .frame(width: max(0, proxy.size.width * self.progressFraction))
+            }
+        }
+        .frame(height: 2)
     }
 
     private var progressFraction: Double {
