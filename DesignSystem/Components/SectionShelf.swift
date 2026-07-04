@@ -164,7 +164,7 @@ final class NavigationBus: ObservableObject {
     static let shared = NavigationBus()
 
     /// Generic navigation destinations pushed onto the active path.
-    enum Destination {
+    enum Destination: Equatable {
         case playlist(Playlist)
         case artist(Artist)
         case album(Album)
