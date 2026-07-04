@@ -16,7 +16,7 @@ struct SectionHeader: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(self.title)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.bold)
                     .foregroundStyle(.primary)
                 if let subtitle {

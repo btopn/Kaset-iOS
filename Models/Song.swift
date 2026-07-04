@@ -137,6 +137,17 @@ struct Song: Identifiable, Codable, Hashable {
         URL(string: "https://i.ytimg.com/vi/\(self.videoId)/hqdefault.jpg")
     }
 
+    var displayThumbnailURL: URL? {
+        if let thumbnailURL,
+           let scheme = thumbnailURL.scheme?.lowercased(),
+           ["http", "https"].contains(scheme),
+           thumbnailURL.host != nil
+        {
+            return thumbnailURL
+        }
+        return self.fallbackThumbnailURL
+    }
+
     /// YouTube's public high-quality 16:9 thumbnail for wide video cards.
     var wideHighQualityThumbnailURL: URL? {
         var components = URLComponents(string: "https://i.ytimg.com/vi/\(self.videoId)/hq720.jpg")

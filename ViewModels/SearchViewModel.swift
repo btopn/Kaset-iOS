@@ -276,6 +276,26 @@ final class SearchViewModel {
         }
     }
 
+    /// Performs a debounced search caused by typing, while leaving autocomplete
+    /// suggestions eligible to appear until real results arrive.
+    func searchFromTyping() {
+        self.searchTask?.cancel()
+        self.allSearchEnrichmentID = nil
+        self.client.clearSearchContinuation()
+
+        guard !self.query.isEmpty else {
+            self.results = .empty
+            self.loadingState = .idle
+            return
+        }
+
+        self.searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            await self.performSearch()
+        }
+    }
+
     /// Performs a search with the current filter (no debounce, called when filter changes).
     private func searchWithFilter() {
         self.searchTask?.cancel()

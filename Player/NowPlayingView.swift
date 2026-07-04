@@ -14,8 +14,12 @@ struct NowPlayingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(WebKitManager.self) private var webKitManager
 
+    let namespace: Namespace.ID
+    var onDismiss: (() -> Void)?
+
     @State private var showQueue = false
     @State private var showLyrics = false
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -26,7 +30,7 @@ struct NowPlayingView: View {
 
                 ScrollView {
                     VStack(spacing: Theme.spacingXXL) {
-                        self.artworkOrVideo
+                        self.cassetteVisual
                         self.trackInfo
                         self.transportPanel
                         self.auxiliaryButtons
@@ -38,6 +42,23 @@ struct NowPlayingView: View {
                 .scrollIndicators(.hidden)
             }
         }
+        .offset(y: max(0, self.dragOffset))
+        .simultaneousGesture(
+            DragGesture()
+                .onChanged { value in
+                    guard value.translation.height > 0 else { return }
+                    self.dragOffset = value.translation.height
+                }
+                .onEnded { value in
+                    if value.translation.height > 120 || value.predictedEndTranslation.height > 240 {
+                        self.dismissNowPlaying()
+                    } else {
+                        withAnimation(AppAnimation.spring) {
+                            self.dragOffset = 0
+                        }
+                    }
+                }
+        )
         .foregroundStyle(.white)
         // The hidden WebView keeps DRM audio playing through this view's lifetime.
         .background(
@@ -64,12 +85,12 @@ struct NowPlayingView: View {
         ZStack {
             Theme.Colors.background.ignoresSafeArea()
 
-            if let url = self.playerService.currentTrack?.thumbnailURL {
-                ArtworkView(url: url, targetSize: .init(width: 260, height: 260), cornerRadius: 36)
-                    .scaleEffect(1.85)
-                    .blur(radius: 72)
+            if let artworkURL {
+                ArtworkView(url: artworkURL, targetSize: .init(width: 360, height: 360), cornerRadius: 48)
+                    .scaleEffect(2.35)
+                    .blur(radius: 78)
                     .saturation(1.35)
-                    .opacity(0.55)
+                    .opacity(0.62)
                     .ignoresSafeArea()
             }
 
@@ -89,7 +110,7 @@ struct NowPlayingView: View {
     private var topBar: some View {
         HStack {
             Button {
-                self.dismiss()
+                self.dismissNowPlaying()
             } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 15, weight: .bold))
@@ -120,32 +141,71 @@ struct NowPlayingView: View {
         .padding(.top, Theme.spacingS)
     }
 
-    /// Album artwork that flips to the in-app video when the track has one
-    /// and the user taps it.
-    private var artworkOrVideo: some View {
-        Group {
-            ArtworkView(
-                url: self.playerService.currentTrack?.thumbnailURL,
-                targetSize: .init(width: Theme.ArtworkSize.nowPlaying, height: Theme.ArtworkSize.nowPlaying),
-                cornerRadius: Theme.cornerRadiusXL
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.cornerRadiusXL, style: .continuous)
-                    .stroke(.white.opacity(0.12), lineWidth: 1)
+    private var cassetteVisual: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
+                .fill(.black.opacity(0.28))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 34, style: .continuous)
+                        .stroke(.white.opacity(0.16), lineWidth: 1)
+                }
+
+            VStack(spacing: Theme.spacingL) {
+                HStack(spacing: Theme.spacingM) {
+                    Capsule()
+                        .fill(.white.opacity(0.16))
+                        .frame(width: 84, height: 7)
+
+                    Spacer()
+
+                    ArtworkView(
+                        url: self.artworkURL,
+                        targetSize: .init(width: 58, height: 58),
+                        cornerRadius: Theme.cornerRadiusM
+                    )
+                    .matchedGeometryEffect(id: "player-artwork", in: self.namespace)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Theme.cornerRadiusM, style: .continuous)
+                            .stroke(.white.opacity(0.12), lineWidth: 1)
+                    }
+
+                    Spacer()
+
+                    Capsule()
+                        .fill(.white.opacity(0.16))
+                        .frame(width: 84, height: 7)
+                }
+
+                HStack(spacing: Theme.spacingL) {
+                    CassetteReelView()
+
+                    Capsule()
+                        .fill(.white.opacity(0.14))
+                        .frame(width: 88, height: 22)
+                        .overlay {
+                            Capsule()
+                                .stroke(.white.opacity(0.12), lineWidth: 1)
+                        }
+
+                    CassetteReelView()
+                }
+
+                HStack(spacing: 28) {
+                    ForEach(0 ..< 4, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(.white.opacity(0.12))
+                            .frame(width: 34, height: 4)
+                    }
+                }
             }
-            .shadow(color: .black.opacity(0.45), radius: 36, x: 0, y: 22)
+            .padding(Theme.spacingXL)
         }
         .frame(maxWidth: .infinity)
-        .aspectRatio(1, contentMode: .fit)
+        .frame(height: 220)
         .scaleEffect(self.playerService.state == .loading ? 0.97 : 1)
+        .shadow(color: .black.opacity(0.36), radius: 34, x: 0, y: 20)
         .animation(AppAnimation.spring, value: self.playerService.state)
-        .onTapGesture {
-            // Toggle the video surface for tracks that have one.
-            if self.playerService.currentTrackHasVideo {
-                self.playerService.showVideo.toggle()
-                HapticService.toggle()
-            }
-        }
+        .accessibilityLabel("Now playing cassette artwork")
     }
 
     private var trackInfo: some View {
@@ -168,6 +228,7 @@ struct NowPlayingView: View {
         }
         .padding(Theme.spacingL)
         .compatGlass(tint: Theme.Colors.glassTint, in: .rect(cornerRadius: 28))
+        .matchedGeometryEffect(id: "player-surface", in: self.namespace)
     }
 
     private var auxiliaryButtons: some View {
@@ -202,5 +263,47 @@ struct NowPlayingView: View {
                 .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
         }
         .buttonStyle(.plain)
+    }
+
+    private func dismissNowPlaying() {
+        if let onDismiss {
+            onDismiss()
+        } else {
+            self.dismiss()
+        }
+    }
+
+    private var artworkURL: URL? {
+        self.playerService.currentTrack?.displayThumbnailURL
+    }
+}
+
+private struct CassetteReelView: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(.white.opacity(0.08))
+                .frame(width: 76, height: 76)
+
+            Circle()
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+                .frame(width: 76, height: 76)
+
+            ForEach(0 ..< 6, id: \.self) { index in
+                Capsule()
+                    .fill(.white.opacity(0.18))
+                    .frame(width: 5, height: 22)
+                    .offset(y: -21)
+                    .rotationEffect(.degrees(Double(index) * 60))
+            }
+
+            Circle()
+                .fill(.black.opacity(0.32))
+                .frame(width: 18, height: 18)
+                .overlay {
+                    Circle()
+                        .stroke(.white.opacity(0.2), lineWidth: 1)
+                }
+        }
     }
 }

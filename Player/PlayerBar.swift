@@ -11,6 +11,7 @@ import SwiftUI
 struct PlayerBar: View {
     @Environment(PlayerService.self) private var playerService
     @Binding var isNowPlayingPresented: Bool
+    let namespace: Namespace.ID
 
     var body: some View {
         if self.playerService.currentTrack != nil || self.playerService.pendingPlayVideoId != nil {
@@ -23,10 +24,11 @@ struct PlayerBar: View {
             VStack(spacing: Theme.spacingXS) {
                 HStack(spacing: Theme.spacingM) {
                     ArtworkView(
-                        url: self.playerService.currentTrack?.thumbnailURL,
+                        url: self.artworkURL,
                         targetSize: .init(width: 42, height: 42),
                         cornerRadius: 10
                     )
+                    .matchedGeometryEffect(id: "player-artwork", in: self.namespace, isSource: !self.isNowPlayingPresented)
                     .overlay {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(.white.opacity(0.1), lineWidth: 1)
@@ -53,13 +55,18 @@ struct PlayerBar: View {
             }
             .padding(.horizontal, Theme.spacingM)
             .padding(.vertical, 10)
-            .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .capsule)
+            .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .rect(cornerRadius: 28))
+            .matchedGeometryEffect(id: "player-surface", in: self.namespace, isSource: !self.isNowPlayingPresented)
             .shadow(color: .black.opacity(0.36), radius: 22, x: 0, y: 12)
-            .contentShape(Capsule())
+            .contentShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .onTapGesture {
-                withAnimation(AppAnimation.spring) {
-                    self.isNowPlayingPresented = true
-                }
+                self.openNowPlaying()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(self.accessibilityLabel)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                self.openNowPlaying()
             }
         }
         .padding(.horizontal, Theme.spacingM)
@@ -110,5 +117,21 @@ struct PlayerBar: View {
     private var progressFraction: Double {
         guard self.playerService.duration > 0 else { return 0 }
         return self.playerService.progress / self.playerService.duration
+    }
+
+    private var accessibilityLabel: String {
+        let title = self.playerService.currentTrack?.title ?? "Loading"
+        let artist = self.playerService.currentTrack?.artistsDisplay ?? ""
+        return artist.isEmpty ? "Now Playing, \(title)" : "Now Playing, \(title), \(artist)"
+    }
+
+    private var artworkURL: URL? {
+        self.playerService.currentTrack?.displayThumbnailURL
+    }
+
+    private func openNowPlaying() {
+        withAnimation(AppAnimation.spring) {
+            self.isNowPlayingPresented = true
+        }
     }
 }

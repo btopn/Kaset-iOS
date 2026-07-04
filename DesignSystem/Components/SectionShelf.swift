@@ -18,7 +18,7 @@ struct SectionShelf<Header: View>: View {
     @ViewBuilder var customHeader: Header
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacingM) {
+        VStack(alignment: .leading, spacing: Theme.spacingS) {
             SectionHeader(
                 title: self.title,
                 subtitle: self.subtitle,
@@ -27,7 +27,7 @@ struct SectionShelf<Header: View>: View {
             )
 
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: Theme.spacingM) {
+                LazyHStack(spacing: Theme.spacingS) {
                     ForEach(Array(self.items.enumerated()), id: \.element.id) { index, item in
                         SectionCard(item: item, rank: self.isChart ? index + 1 : nil)
                             .padding(.leading, index == 0 ? Theme.spacingXL : 0)

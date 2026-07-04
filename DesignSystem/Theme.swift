@@ -46,8 +46,8 @@ enum Theme {
     /// Square artwork sizes used across cards, rows, and the now-playing screen.
     enum ArtworkSize {
         static let row: CGFloat = 48
-        static let cardSmall: CGFloat = 140
-        static let cardLarge: CGFloat = 180
+        static let cardSmall: CGFloat = 128
+        static let cardLarge: CGFloat = 156
         static let nowPlaying: CGFloat = 320
     }
 }

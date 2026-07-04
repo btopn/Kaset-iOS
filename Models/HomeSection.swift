@@ -134,7 +134,7 @@ enum HomeSectionItem: Identifiable {
     var thumbnailURL: URL? {
         switch self {
         case let .song(song):
-            song.thumbnailURL
+            song.displayThumbnailURL
         case let .album(album):
             album.thumbnailURL
         case let .playlist(playlist):

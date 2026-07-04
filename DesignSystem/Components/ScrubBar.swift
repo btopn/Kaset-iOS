@@ -20,13 +20,23 @@ struct ScrubBar: View {
         VStack(spacing: 6) {
             GeometryReader { proxy in
                 let progress = self.displayProgress
+                let thumbSize: CGFloat = self.isSeeking ? 16 : 9
+                let progressWidth = max(0, min(proxy.size.width, proxy.size.width * progress))
+
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(Color.secondary.opacity(0.3))
                         .frame(height: self.height)
                     Capsule()
                         .fill(Color.primary)
-                        .frame(width: max(0, proxy.size.width * progress), height: self.height)
+                        .frame(width: progressWidth, height: self.height)
+
+                    Circle()
+                        .fill(Color.primary)
+                        .frame(width: thumbSize, height: thumbSize)
+                        .shadow(color: .black.opacity(self.isSeeking ? 0.35 : 0.18), radius: self.isSeeking ? 8 : 3, x: 0, y: 1)
+                        .offset(x: max(0, min(proxy.size.width - thumbSize, progressWidth - thumbSize / 2)))
+                        .animation(AppAnimation.snappy, value: self.isSeeking)
                 }
                 .frame(height: max(self.height, 24))
                 .contentShape(Rectangle())
@@ -75,9 +85,10 @@ struct ScrubBar: View {
     /// The fraction (0–1) to display: the live drag value while seeking,
     /// otherwise the observed progress.
     private var displayProgress: Double {
-        self.isSeeking ? self.seekValue : (self.playerService.duration > 0
+        let value = self.isSeeking ? self.seekValue : (self.playerService.duration > 0
             ? self.playerService.progress / self.playerService.duration
             : 0)
+        return max(0, min(1, value))
     }
 
     /// Formats seconds as `m:ss` (or `h:mm:ss` for long durations).

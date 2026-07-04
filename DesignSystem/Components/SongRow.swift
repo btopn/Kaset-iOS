@@ -33,7 +33,7 @@ struct SongRow: View {
                     .frame(width: 28, alignment: .center)
             } else {
                 ArtworkView(
-                    url: self.song.thumbnailURL ?? self.song.fallbackThumbnailURL,
+                    url: self.song.displayThumbnailURL,
                     targetSize: .init(width: Theme.ArtworkSize.row, height: Theme.ArtworkSize.row),
                     cornerRadius: Theme.cornerRadiusS
                 )
@@ -41,7 +41,7 @@ struct SongRow: View {
 
             if rank != nil {
                 ArtworkView(
-                    url: self.song.thumbnailURL ?? self.song.fallbackThumbnailURL,
+                    url: self.song.displayThumbnailURL,
                     targetSize: .init(width: Theme.ArtworkSize.row, height: Theme.ArtworkSize.row),
                     cornerRadius: Theme.cornerRadiusS
                 )

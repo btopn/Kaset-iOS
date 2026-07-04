@@ -15,9 +15,9 @@ struct SearchResponse {
     /// All results as a flat array of items.
     var allItems: [SearchResultItem] {
         var items: [SearchResultItem] = []
+        items.append(contentsOf: self.artists.map { .artist($0) })
         items.append(contentsOf: self.songs.map { .song($0) })
         items.append(contentsOf: self.albums.map { .album($0) })
-        items.append(contentsOf: self.artists.map { .artist($0) })
         items.append(contentsOf: self.playlists.map { .playlist($0) })
         items.append(contentsOf: self.podcastShows.map { .podcastShow($0) })
         return items
@@ -139,7 +139,7 @@ enum SearchResultItem: Identifiable {
     var thumbnailURL: URL? {
         switch self {
         case let .song(song):
-            song.thumbnailURL
+            song.displayThumbnailURL
         case let .album(album):
             album.thumbnailURL
         case let .artist(artist):

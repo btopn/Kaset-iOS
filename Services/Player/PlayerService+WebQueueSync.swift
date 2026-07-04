@@ -103,7 +103,7 @@ extension PlayerService {
     }
 
     private func keepQueueSongVisible(_ song: Song, thumbnailUrl: String) {
-        let intendedThumbnailURL = URL(string: thumbnailUrl) ?? song.thumbnailURL
+        let intendedThumbnailURL = song.displayThumbnailURL ?? Self.observedThumbnailURL(thumbnailUrl)
         self.currentTrack = Song(
             id: song.id,
             title: song.title,
@@ -478,9 +478,10 @@ extension PlayerService {
     /// Updates track metadata and enforces Kaset's queue when YouTube tries to diverge.
     func updateTrackMetadata(title: String, artist: String, thumbnailUrl: String, videoId observedVideoId: String?) {
         self.logger.debug("Track metadata updated: \(title) - \(artist)")
-        let thumbnailURL = URL(string: thumbnailUrl)
+        let thumbnailURL = Self.observedThumbnailURL(thumbnailUrl)
         let artistObj = Artist(id: "unknown", name: artist)
         let resolvedVideoId = self.resolvedObservedVideoId(observedVideoId)
+        let existingTrack = self.currentTrack?.videoId == resolvedVideoId ? self.currentTrack : nil
         let trackChanged = self.currentTrack?.title != title
             || self.currentTrack?.artistsDisplay != artist
             || self.currentTrack?.videoId != resolvedVideoId
@@ -545,9 +546,9 @@ extension PlayerService {
             id: resolvedVideoId,
             title: title,
             artists: [artistObj],
-            album: nil,
+            album: existingTrack?.album,
             duration: self.duration > 0 ? self.duration : nil,
-            thumbnailURL: thumbnailURL,
+            thumbnailURL: existingTrack?.displayThumbnailURL ?? thumbnailURL,
             videoId: resolvedVideoId
         )
 
@@ -558,5 +559,16 @@ extension PlayerService {
                 self.currentTrackLikeStatus = cachedStatus
             }
         }
+    }
+
+    private static func observedThumbnailURL(_ rawValue: String) -> URL? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              url.scheme != nil
+        else {
+            return nil
+        }
+        return url
     }
 }
