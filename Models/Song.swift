@@ -143,9 +143,9 @@ struct Song: Identifiable, Codable, Hashable {
            ["http", "https"].contains(scheme),
            thumbnailURL.host != nil
         {
-            return thumbnailURL
+            return thumbnailURL.highQualityThumbnailURL ?? thumbnailURL
         }
-        return self.fallbackThumbnailURL
+        return self.fallbackThumbnailURL?.highQualityThumbnailURL ?? self.fallbackThumbnailURL
     }
 
     /// YouTube's public high-quality 16:9 thumbnail for wide video cards.

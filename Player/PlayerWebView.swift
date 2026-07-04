@@ -402,8 +402,8 @@ final class SingletonPlayerWebView {
 
         private func handleStateUpdate(body: [String: Any], observedVideoId: String?) {
             let isPlaying = body["isPlaying"] as? Bool ?? false
-            let progress = body["progress"] as? Int ?? 0
-            let duration = body["duration"] as? Int ?? 0
+            let progress = Self.doubleValue(body["progress"])
+            let duration = Self.doubleValue(body["duration"])
             let title = body["title"] as? String ?? ""
             let artist = body["artist"] as? String ?? ""
             let thumbnailUrl = body["thumbnailUrl"] as? String ?? ""
@@ -414,8 +414,8 @@ final class SingletonPlayerWebView {
             Task { @MainActor in
                 self.playerService.updatePlaybackState(
                     isPlaying: isPlaying,
-                    progress: Double(progress),
-                    duration: Double(duration)
+                    progress: progress,
+                    duration: duration
                 )
 
                 // Update video availability.
@@ -445,6 +445,16 @@ final class SingletonPlayerWebView {
                     )
                 }
             }
+        }
+
+        private static func doubleValue(_ value: Any?) -> Double {
+            if let value = value as? Double {
+                return value
+            }
+            if let value = value as? NSNumber {
+                return value.doubleValue
+            }
+            return 0
         }
 
         private static func likeStatus(from rawValue: String?) -> LikeStatus {

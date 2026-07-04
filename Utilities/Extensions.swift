@@ -64,8 +64,9 @@ extension URL {
         var urlString = absoluteString
 
         // Replace size parameters for higher quality
-        urlString = urlString.replacingOccurrences(of: "w60-h60", with: "w226-h226")
-        urlString = urlString.replacingOccurrences(of: "w120-h120", with: "w226-h226")
+        urlString = urlString.replacingOccurrences(of: #"w\d+-h\d+"#, with: "w544-h544", options: .regularExpression)
+        urlString = urlString.replacingOccurrences(of: "/default.jpg", with: "/hqdefault.jpg")
+        urlString = urlString.replacingOccurrences(of: "/mqdefault.jpg", with: "/hqdefault.jpg")
 
         return URL(string: urlString)
     }

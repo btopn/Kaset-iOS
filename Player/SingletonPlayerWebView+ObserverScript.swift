@@ -30,8 +30,8 @@ extension SingletonPlayerWebView {
             let pollIntervalId = null;
             let lastUpdateTime = 0;
             let trailingUpdateTimeoutId = null;
-            const UPDATE_THROTTLE_MS = 500; // Throttle updates to max 2/sec
-            const POLL_INTERVAL_MS = 1000; // Poll at 1Hz during playback (reduced from 250ms)
+            const UPDATE_THROTTLE_MS = 250; // Throttle updates to max 4/sec
+            const POLL_INTERVAL_MS = 250; // Smooth enough for scrubber/progress without a native timer
 
             // Volume enforcement: track target volume set by Swift
             // Don't set a default - only enforce when explicitly set by Swift
@@ -386,8 +386,12 @@ extension SingletonPlayerWebView {
                     bridge.postMessage({
                         type: 'STATE_UPDATE',
                         isPlaying: isPlaying,
-                        progress: progressBar ? parseInt(progressBar.getAttribute('value') || '0') : 0,
-                        duration: progressBar ? parseInt(progressBar.getAttribute('aria-valuemax') || '0') : 0,
+                        progress: video && Number.isFinite(video.currentTime)
+                            ? video.currentTime
+                            : (progressBar ? parseFloat(progressBar.getAttribute('value') || '0') : 0),
+                        duration: video && Number.isFinite(video.duration)
+                            ? video.duration
+                            : (progressBar ? parseFloat(progressBar.getAttribute('aria-valuemax') || '0') : 0),
                         title: title,
                         artist: artist,
                         videoId: videoId,

@@ -443,9 +443,9 @@ extension PlayerService {
         }
 
         self.clearRestoredPlaybackSessionState()
+        self.progress = clampedTime
         if self.pendingPlayVideoId != nil {
             SingletonPlayerWebView.shared.seek(to: clampedTime)
-            self.progress = clampedTime
         } else {
             await self.evaluatePlayerCommand("seekTo(\(clampedTime), true)")
         }

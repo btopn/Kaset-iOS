@@ -12,6 +12,7 @@ struct ScrubBar: View {
 
     @State private var seekValue: Double = 0
     @State private var isSeeking = false
+    @State private var pendingSeekTarget: TimeInterval?
 
     var showsTimes: Bool = true
     var height: CGFloat = 4
@@ -50,8 +51,13 @@ struct ScrubBar: View {
                         .onEnded { value in
                             let fraction = max(0, min(1, value.location.x / proxy.size.width))
                             let target = fraction * self.playerService.duration
-                            self.isSeeking = false
-                            Task { await self.playerService.seek(to: target) }
+                            self.seekValue = fraction
+                            self.pendingSeekTarget = target
+                            Task {
+                                await self.playerService.seek(to: target)
+                                self.pendingSeekTarget = nil
+                                self.isSeeking = false
+                            }
                         }
                 )
             }
@@ -68,11 +74,11 @@ struct ScrubBar: View {
             }
         }
         .onChange(of: self.playerService.progress) { _, newValue in
-            guard !self.isSeeking, self.playerService.duration > 0 else { return }
+            guard !self.isSeeking, self.pendingSeekTarget == nil, self.playerService.duration > 0 else { return }
             self.seekValue = newValue / self.playerService.duration
         }
         .onChange(of: self.playerService.duration) { _, _ in
-            guard !self.isSeeking, self.playerService.duration > 0 else { return }
+            guard !self.isSeeking, self.pendingSeekTarget == nil, self.playerService.duration > 0 else { return }
             self.seekValue = self.playerService.progress / self.playerService.duration
         }
         .onAppear {
@@ -85,7 +91,7 @@ struct ScrubBar: View {
     /// The fraction (0–1) to display: the live drag value while seeking,
     /// otherwise the observed progress.
     private var displayProgress: Double {
-        let value = self.isSeeking ? self.seekValue : (self.playerService.duration > 0
+        let value = self.isSeeking || self.pendingSeekTarget != nil ? self.seekValue : (self.playerService.duration > 0
             ? self.playerService.progress / self.playerService.duration
             : 0)
         return max(0, min(1, value))

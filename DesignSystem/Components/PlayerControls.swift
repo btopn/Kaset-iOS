@@ -66,6 +66,8 @@ struct PlayerControls: View {
                 .foregroundStyle(.white)
                 .background(Theme.Colors.accent, in: Circle())
                 .contentShape(Circle())
+                .contentTransition(.symbolEffect(.replace))
+                .animation(AppAnimation.snappy, value: self.playerService.isPlaying)
         }
         .buttonStyle(.plain)
     }

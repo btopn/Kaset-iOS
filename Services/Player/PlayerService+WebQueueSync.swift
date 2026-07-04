@@ -569,6 +569,6 @@ extension PlayerService {
         else {
             return nil
         }
-        return url
+        return url.highQualityThumbnailURL ?? url
     }
 }

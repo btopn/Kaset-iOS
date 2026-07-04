@@ -74,10 +74,6 @@ struct RootView: View {
                     }
                 }
                 .zIndex(1)
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.96, anchor: .bottom).combined(with: .opacity),
-                    removal: .opacity
-                ))
             }
         }
         .background(Theme.Colors.background.ignoresSafeArea())

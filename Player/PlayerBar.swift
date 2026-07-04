@@ -95,6 +95,8 @@ struct PlayerBar: View {
                 .foregroundStyle(.primary)
                 .frame(width: 32, height: 32)
                 .contentShape(Circle())
+                .contentTransition(.symbolEffect(.replace))
+                .animation(AppAnimation.snappy, value: self.playerService.isPlaying)
         }
         .buttonStyle(.plain)
     }
