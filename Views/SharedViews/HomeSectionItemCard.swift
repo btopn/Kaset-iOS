@@ -310,19 +310,18 @@ struct HomeSectionItemCard: View {
     }
 }
 
-// MARK: - LiquidGlassPlayIcon
+// MARK: - PlainPlayIcon
 
-private struct LiquidGlassPlayIcon: View {
+private struct PlainPlayIcon: View {
     let size: CGSize
-    let interactive: Bool
 
     var body: some View {
         Image(systemName: "play.fill")
             .font(.title2)
-            .foregroundStyle(.primary)
+            .foregroundStyle(.white)
             .offset(x: 2)
             .frame(width: self.size.width, height: self.size.height)
-            .compatGlass(interactive: self.interactive, in: .circle)
+            .background(.black.opacity(0.48), in: Circle())
     }
 }
 
@@ -332,7 +331,7 @@ private struct SongCoverPlayOverlay: View {
     let size: CGSize
 
     var body: some View {
-        LiquidGlassPlayIcon(size: self.size, interactive: false)
+        PlainPlayIcon(size: self.size)
             .allowsHitTesting(false)
     }
 }

@@ -264,7 +264,11 @@ extension PlayerService {
                         var enrichedQueueSong = songData
                         enrichedQueueSong.likeStatus = resolvedLikeStatus
                         var updatedEntries = self.queueEntries
-                        updatedEntries[queueIndex] = QueueEntry(id: updatedEntries[queueIndex].id, song: enrichedQueueSong)
+                        updatedEntries[queueIndex] = QueueEntry(
+                            id: updatedEntries[queueIndex].id,
+                            song: enrichedQueueSong,
+                            source: updatedEntries[queueIndex].source
+                        )
                         self.setQueue(entries: updatedEntries)
                         self.logger.debug("Enriched queue entry at index \(queueIndex): '\(enrichedQueueSong.title)' with artists: \(enrichedQueueSong.artistsDisplay)")
                         // Save the enriched queue to persistence

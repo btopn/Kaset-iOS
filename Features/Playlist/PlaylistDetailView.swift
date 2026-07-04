@@ -10,10 +10,9 @@ struct PlaylistDetailView: View {
     let playlist: Playlist
     @State var viewModel: PlaylistDetailViewModel
     let playerBarNavigationAction: PlayerBarNavigationAction
+    @State private var playlistSearchText = ""
 
     @Environment(PlayerService.self) private var playerService
-    @Environment(FavoritesManager.self) private var favoritesManager
-    @Environment(SongLikeStatusManager.self) private var likeStatusManager
     @Environment(\.presentNowPlaying) private var presentNowPlaying
 
     var body: some View {
@@ -29,6 +28,7 @@ struct PlaylistDetailView: View {
                         Task { await self.viewModel.refresh() }
                     }
                 case .loaded, .loadingMore:
+                    self.playlistSearchField
                     self.tracksList
                 }
             }
@@ -95,18 +95,97 @@ struct PlaylistDetailView: View {
         .padding(.top, Theme.spacingS)
     }
 
-    private var tracksList: some View {
-        let tracks = self.viewModel.playlistDetail?.tracks ?? []
-        return LazyVStack(spacing: 0) {
-            ForEach(Array(tracks.enumerated()), id: \.element.id) { index, song in
-                SongRow(song: song, rank: nil)
-                    .onAppear {
-                        // Load more when nearing the end.
-                        if index == tracks.count - 5 {
-                            Task { await self.viewModel.loadMore() }
-                        }
-                    }
+    private var playlistSearchField: some View {
+        HStack(spacing: Theme.spacingS) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("Search in playlist", text: self.$playlistSearchText)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+
+            if !self.playlistSearchText.isEmpty {
+                Button {
+                    self.playlistSearchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear playlist search")
             }
         }
+        .padding(.horizontal, Theme.spacingM)
+        .padding(.vertical, 10)
+        .background(Theme.Colors.surfaceStrong, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(.secondary.opacity(0.14), lineWidth: 1)
+        }
+        .padding(.horizontal, Theme.spacingXL)
+    }
+
+    private var tracksList: some View {
+        let tracks = self.viewModel.playlistDetail?.tracks ?? []
+        let filteredTracks = self.filteredTracksWithIndices(in: tracks)
+        return LazyVStack(spacing: 0) {
+            if filteredTracks.isEmpty, !tracks.isEmpty {
+                EmptyStateView(
+                    title: "No Matches",
+                    message: "Try a different song, artist, or album.",
+                    systemImage: "magnifyingglass"
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Theme.spacingXL)
+                .padding(.vertical, Theme.spacingXL)
+            } else {
+                ForEach(filteredTracks) { item in
+                    SongRow(song: item.song, rank: nil)
+                        .onAppear {
+                            // Load more when nearing the end.
+                            if self.playlistSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                               item.index == max(0, tracks.count - 5)
+                            {
+                                Task { await self.viewModel.loadMore() }
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    private func filteredTracksWithIndices(in tracks: [Song]) -> [PlaylistTrackSearchResult] {
+        let query = self.playlistSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else {
+            return tracks.enumerated().map { PlaylistTrackSearchResult(index: $0.offset, song: $0.element) }
+        }
+
+        return tracks.enumerated().compactMap { index, song in
+            guard self.playlistSearchFields(for: song).contains(where: { field in
+                field.localizedCaseInsensitiveContains(query)
+            }) else { return nil }
+
+            return PlaylistTrackSearchResult(index: index, song: song)
+        }
+    }
+
+    private func playlistSearchFields(for song: Song) -> [String] {
+        [
+            song.title,
+            song.artists.first?.name ?? "",
+            song.artistsDisplay,
+            song.album?.title ?? "",
+        ]
+    }
+}
+
+private struct PlaylistTrackSearchResult: Identifiable {
+    let index: Int
+    let song: Song
+
+    var id: String {
+        self.song.id
     }
 }

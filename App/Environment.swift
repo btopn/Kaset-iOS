@@ -25,6 +25,9 @@ extension EnvironmentValues {
 
     /// Opens the full now-playing surface from shared song/card components.
     @Entry var presentNowPlaying: () -> Void = {}
+
+    /// Opens an artist detail page from shared chrome such as Now Playing.
+    @Entry var openArtistPage: (Artist) -> Void = { _ in }
 }
 
 // MARK: - TabItem

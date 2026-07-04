@@ -13,6 +13,9 @@ struct NowPlayingView: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(\.dismiss) private var dismiss
     @Environment(WebKitManager.self) private var webKitManager
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openArtistPage) private var openArtistPage
+    @Environment(\.client) private var client
 
     let namespace: Namespace.ID
     var onDismiss: (() -> Void)?
@@ -20,26 +23,27 @@ struct NowPlayingView: View {
     @State private var showQueue = false
     @State private var showLyrics = false
     @State private var dragOffset: CGFloat = 0
+    @State private var isOpeningArtist = false
 
     var body: some View {
-        ZStack {
-            self.backgroundLayer
+        GeometryReader { proxy in
+            ZStack {
+                self.backgroundLayer
 
-            VStack(spacing: 0) {
-                self.topBar
+                VStack(spacing: Theme.spacingM) {
+                    self.topBar
 
-                ScrollView {
-                    VStack(spacing: Theme.spacingXXL) {
-                        self.cassetteVisual
-                        self.trackInfo
-                        self.transportPanel
-                        self.auxiliaryButtons
-                    }
-                    .padding(.horizontal, Theme.spacingXL)
-                    .padding(.top, Theme.spacingXXL)
-                    .padding(.bottom, Theme.spacingXXXL)
+                    Spacer(minLength: 0)
+                    self.albumArtwork(size: self.artworkSize(in: proxy.size))
+                    self.trackInfo
+                    self.transportPanel
+                    self.auxiliaryButtons
+                    Spacer(minLength: 0)
                 }
-                .scrollIndicators(.hidden)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, Theme.spacingL)
+                .padding(.top, Theme.spacingS)
+                .padding(.bottom, Theme.spacingL)
             }
         }
         .offset(y: max(0, self.dragOffset))
@@ -59,7 +63,7 @@ struct NowPlayingView: View {
                     }
                 }
         )
-        .foregroundStyle(.white)
+        .foregroundStyle(.primary)
         // The hidden WebView keeps DRM audio playing through this view's lifetime.
         .background(
             Group {
@@ -86,20 +90,16 @@ struct NowPlayingView: View {
             Theme.Colors.background.ignoresSafeArea()
 
             if let artworkURL {
-                ArtworkView(url: artworkURL, targetSize: .init(width: 360, height: 360), cornerRadius: 48)
-                    .scaleEffect(2.35)
-                    .blur(radius: 78)
-                    .saturation(1.35)
-                    .opacity(0.62)
+                ArtworkView(url: artworkURL, targetSize: .init(width: 420, height: 420), cornerRadius: 52)
+                    .scaleEffect(2.6)
+                    .blur(radius: 82)
+                    .saturation(1.45)
+                    .opacity(self.colorScheme == .dark ? 0.64 : 0.36)
                     .ignoresSafeArea()
             }
 
             LinearGradient(
-                colors: [
-                    .black.opacity(0.08),
-                    Theme.Colors.background.opacity(0.72),
-                    Theme.Colors.background,
-                ],
+                colors: self.backdropGradientColors,
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -115,9 +115,10 @@ struct NowPlayingView: View {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 15, weight: .bold))
                     .frame(width: 38, height: 38)
-                    .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
+            .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: Circle())
 
             Spacer()
 
@@ -127,85 +128,46 @@ struct NowPlayingView: View {
 
             Spacer()
 
-            Button {
-                self.showQueue = true
+            Menu {
+                if let song = self.playerService.currentTrack {
+                    ShareContextMenu.menuItem(for: song)
+                }
+
+                Button {
+                    self.playerService.toggleLibraryStatus()
+                    HapticService.toggle()
+                } label: {
+                    Label(
+                        self.playerService.currentTrackInLibrary ? "Remove from Library" : "Add to Library",
+                        systemImage: self.playerService.currentTrackInLibrary ? "checkmark.circle.fill" : "plus.circle"
+                    )
+                }
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .bold))
                     .frame(width: 38, height: 38)
-                    .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
+            .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: Circle())
         }
-        .padding(.horizontal, Theme.spacingXL)
-        .padding(.top, Theme.spacingS)
     }
 
-    private var cassetteVisual: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(.black.opacity(0.28))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 34, style: .continuous)
-                        .stroke(.white.opacity(0.16), lineWidth: 1)
-                }
-
-            VStack(spacing: Theme.spacingL) {
-                HStack(spacing: Theme.spacingM) {
-                    Capsule()
-                        .fill(.white.opacity(0.16))
-                        .frame(width: 84, height: 7)
-
-                    Spacer()
-
-                    ArtworkView(
-                        url: self.artworkURL,
-                        targetSize: .init(width: 58, height: 58),
-                        cornerRadius: Theme.cornerRadiusM
-                    )
-                    .matchedGeometryEffect(id: "player-artwork", in: self.namespace)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Theme.cornerRadiusM, style: .continuous)
-                            .stroke(.white.opacity(0.12), lineWidth: 1)
-                    }
-
-                    Spacer()
-
-                    Capsule()
-                        .fill(.white.opacity(0.16))
-                        .frame(width: 84, height: 7)
-                }
-
-                HStack(spacing: Theme.spacingL) {
-                    CassetteReelView()
-
-                    Capsule()
-                        .fill(.white.opacity(0.14))
-                        .frame(width: 88, height: 22)
-                        .overlay {
-                            Capsule()
-                                .stroke(.white.opacity(0.12), lineWidth: 1)
-                        }
-
-                    CassetteReelView()
-                }
-
-                HStack(spacing: 28) {
-                    ForEach(0 ..< 4, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(.white.opacity(0.12))
-                            .frame(width: 34, height: 4)
-                    }
-                }
-            }
-            .padding(Theme.spacingXL)
+    private func albumArtwork(size: CGFloat) -> some View {
+        ArtworkView(
+            url: self.artworkURL,
+            targetSize: .init(width: size, height: size),
+            cornerRadius: 26
+        )
+        .matchedGeometryEffect(id: "player-artwork", in: self.namespace)
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 220)
+        .shadow(color: .black.opacity(self.colorScheme == .dark ? 0.38 : 0.16), radius: 32, x: 0, y: 20)
         .scaleEffect(self.playerService.state == .loading ? 0.97 : 1)
-        .shadow(color: .black.opacity(0.36), radius: 34, x: 0, y: 20)
         .animation(AppAnimation.spring, value: self.playerService.state)
-        .accessibilityLabel("Now playing cassette artwork")
+        .accessibilityLabel("Now playing artwork")
     }
 
     private var trackInfo: some View {
@@ -214,55 +176,79 @@ struct NowPlayingView: View {
                 .font(.title2.weight(.bold))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
-            Text(self.playerService.currentTrack?.artistsDisplay ?? "")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+
+            if let artist = self.displayArtist {
+                Button {
+                    self.openArtist(artist)
+                } label: {
+                    Text(self.playerService.currentTrack?.artistsDisplay ?? "")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .padding(.horizontal, Theme.spacingM)
+                        .padding(.vertical, Theme.spacingXS)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(self.isOpeningArtist)
+                .accessibilityAddTraits(.isLink)
+            } else {
+                Text(self.playerService.currentTrack?.artistsDisplay ?? "")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity)
     }
 
     private var transportPanel: some View {
-        VStack(spacing: Theme.spacingL) {
+        VStack(spacing: Theme.spacingM) {
             ScrubBar(showsTimes: true)
             PlayerControls(size: .large)
         }
-        .padding(Theme.spacingL)
-        .compatGlass(tint: Theme.Colors.glassTint, in: .rect(cornerRadius: 28))
+        .padding(.horizontal, Theme.spacingL)
+        .padding(.vertical, Theme.spacingM)
+        .frame(maxWidth: 360)
+        .compatGlass(interactive: false, tint: Theme.Colors.glassTint, in: .rect(cornerRadius: 30))
         .matchedGeometryEffect(id: "player-surface", in: self.namespace)
     }
 
     private var auxiliaryButtons: some View {
-        CompatGlassContainer(spacing: Theme.spacingM) {
-            HStack(spacing: Theme.spacingM) {
-                self.glassIconButton(systemName: "text.quote") {
-                    self.showLyrics = true
-                }
+        HStack(spacing: Theme.spacingM) {
+            self.iconButton(systemName: "text.quote", accessibilityLabel: "Lyrics") {
+                self.showLyrics = true
+            }
 
-                self.glassIconButton(systemName: "airplayaudio") {
-                    self.playerService.showAirPlayPicker()
-                    HapticService.toggle()
-                }
+            self.iconButton(systemName: "airplayaudio", accessibilityLabel: "AirPlay") {
+                self.playerService.showAirPlayPicker()
+                HapticService.toggle()
+            }
 
-                self.glassIconButton(systemName: self.playerService.currentTrackInLibrary ? "checkmark.circle.fill" : "plus.circle") {
-                    self.playerService.toggleLibraryStatus()
-                    HapticService.toggle()
-                }
+            self.iconButton(
+                systemName: self.playerService.currentTrackInLibrary ? "checkmark.circle.fill" : "plus.circle",
+                accessibilityLabel: self.playerService.currentTrackInLibrary ? "Remove from Library" : "Add to Library"
+            ) {
+                self.playerService.toggleLibraryStatus()
+                HapticService.toggle()
+            }
 
-                self.glassIconButton(systemName: "list.bullet") {
-                    self.showQueue = true
-                }
+            self.iconButton(systemName: "list.bullet", accessibilityLabel: "Up Next") {
+                self.showQueue = true
             }
         }
     }
 
-    private func glassIconButton(systemName: String, action: @escaping () -> Void) -> some View {
+    private func iconButton(systemName: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 18, weight: .semibold))
-                .frame(width: 52, height: 52)
-                .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: .circle)
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .compatGlass(interactive: true, tint: Theme.Colors.glassTint, in: Circle())
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func dismissNowPlaying() {
@@ -276,34 +262,51 @@ struct NowPlayingView: View {
     private var artworkURL: URL? {
         self.playerService.currentTrack?.displayThumbnailURL
     }
-}
 
-private struct CassetteReelView: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(.white.opacity(0.08))
-                .frame(width: 76, height: 76)
+    private var navigableArtist: Artist? {
+        self.playerService.currentTrack?.artists.first(where: \.hasNavigableId)
+    }
 
-            Circle()
-                .stroke(.white.opacity(0.18), lineWidth: 1)
-                .frame(width: 76, height: 76)
+    private var displayArtist: Artist? {
+        self.navigableArtist ?? self.playerService.currentTrack?.artists.first
+    }
 
-            ForEach(0 ..< 6, id: \.self) { index in
-                Capsule()
-                    .fill(.white.opacity(0.18))
-                    .frame(width: 5, height: 22)
-                    .offset(y: -21)
-                    .rotationEffect(.degrees(Double(index) * 60))
+    private func openArtist(_ artist: Artist) {
+        if artist.hasNavigableId {
+            self.openArtistPage(artist)
+            return
+        }
+
+        guard let client else { return }
+        self.isOpeningArtist = true
+        Task {
+            defer { self.isOpeningArtist = false }
+            let response = try? await client.searchArtists(query: artist.name)
+            guard let resolvedArtist = response?.artists.first(where: \.hasNavigableId) else {
+                return
             }
 
-            Circle()
-                .fill(.black.opacity(0.32))
-                .frame(width: 18, height: 18)
-                .overlay {
-                    Circle()
-                        .stroke(.white.opacity(0.2), lineWidth: 1)
-                }
+            self.openArtistPage(resolvedArtist)
         }
+    }
+
+    private var backdropGradientColors: [Color] {
+        if self.colorScheme == .dark {
+            return [
+                .black.opacity(0.12),
+                Theme.Colors.background.opacity(0.72),
+                Theme.Colors.background,
+            ]
+        }
+
+        return [
+            .white.opacity(0.24),
+            Theme.Colors.background.opacity(0.84),
+            Theme.Colors.background,
+        ]
+    }
+
+    private func artworkSize(in size: CGSize) -> CGFloat {
+        min(size.width - Theme.spacingL * 2, size.height * 0.52, 348)
     }
 }

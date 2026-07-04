@@ -391,9 +391,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         self.forwardSkipIndexStack.removeAll()
     }
 
-    func setQueue(_ songs: [Song], entryIDs: [UUID]? = nil) {
-        let entries = zip(entryIDs ?? songs.map { _ in UUID() }, songs).map { QueueEntry(id: $0.0, song: $0.1) }
-        self.setQueue(entries: entries.count == songs.count ? entries : songs.map { QueueEntry(id: UUID(), song: $0) })
+    func setQueue(_ songs: [Song], entryIDs: [UUID]? = nil, source: QueueEntrySource = .added) {
+        let entries = zip(entryIDs ?? songs.map { _ in UUID() }, songs).map { QueueEntry(id: $0.0, song: $0.1, source: source) }
+        self.setQueue(entries: entries.count == songs.count ? entries : songs.map { QueueEntry(id: UUID(), song: $0, source: source) })
     }
 
     func setQueue(entries: [QueueEntry]) {

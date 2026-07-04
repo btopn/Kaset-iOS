@@ -6,9 +6,8 @@ import SwiftUI
 /// `SectionShelf` component. Consumes the ported `HomeViewModel`.
 struct HomeView: View {
     @State var viewModel: HomeViewModel
-    @Environment(PlayerService.self) private var playerService
-    @Environment(FavoritesManager.self) private var favoritesManager
-    @State private var navigationPath = NavigationPath()
+    @Binding var navigationPath: NavigationPath
+    @Environment(SongLikeStatusManager.self) private var likeStatusManager
     @State private var networkMonitor = NetworkMonitor.shared
 
     var body: some View {
@@ -51,20 +50,18 @@ struct HomeView: View {
 
     private var contentView: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: Theme.spacingXL) {
+            LazyVStack(alignment: .leading, spacing: Theme.spacingL) {
                 self.homeHeader
 
                 let quickPickSongs = self.quickPickSongs
-                let quickPickIDs = Set(quickPickSongs.map { "song-\($0.id)" })
 
                 if !quickPickSongs.isEmpty {
-                    HomeCompactSongSection(title: "Quick picks", songs: quickPickSongs)
+                    HomeSongRailSection(title: "Quick picks", songs: quickPickSongs)
                 }
 
                 ForEach(self.viewModel.sections) { section in
-                    let items = section.items.filter { !quickPickIDs.contains($0.id) }
-                    if !items.isEmpty {
-                        HomeCompactSection(title: section.title, items: Array(items.prefix(6)))
+                    if !self.isQuickPicksSection(section), !section.items.isEmpty {
+                        self.sectionContent(section)
                     }
                 }
             }
@@ -91,132 +88,151 @@ struct HomeView: View {
     }
 
     private var quickPickSongs: [Song] {
+        if let quickPicksSection = self.viewModel.sections.first(where: self.isQuickPicksSection) {
+            return self.dedupedSongs(in: quickPicksSection.items)
+        }
+
+        return self.dedupedSongs(in: self.viewModel.sections.flatMap(\.items))
+    }
+
+    private func dedupedSongs(in items: [HomeSectionItem]) -> [Song] {
         var seen = Set<String>()
         var songs: [Song] = []
 
-        for section in self.viewModel.sections {
-            for item in section.items {
-                guard case let .song(song) = item, seen.insert(song.id).inserted else { continue }
-                songs.append(song)
-                if songs.count == 6 { return songs }
-            }
+        for item in items {
+            guard case let .song(song) = item, seen.insert(song.videoId).inserted else { continue }
+            guard !self.likeStatusManager.isDisliked(song) else { continue }
+            songs.append(song)
         }
 
         return songs
     }
 
+    private func isQuickPicksSection(_ section: HomeSection) -> Bool {
+        section.title.localizedCaseInsensitiveContains("quick")
+    }
+
+    @ViewBuilder
+    private func sectionContent(_ section: HomeSection) -> some View {
+        let songs = self.dedupedSongs(in: section.items)
+        if self.containsOnlySongs(section.items) {
+            if !songs.isEmpty {
+                HomeSongRailSection(title: section.title, songs: songs)
+            }
+        } else {
+            SectionShelf(title: section.title, items: section.items, isChart: section.isChart)
+        }
+    }
+
+    private func containsOnlySongs(_ items: [HomeSectionItem]) -> Bool {
+        items.allSatisfy { item in
+            if case .song = item { true } else { false }
+        }
+    }
 }
 
-private struct HomeCompactSongSection: View {
+private struct HomeSongRailSection: View {
+    private static let rowsPerColumn = 4
+    private static let rowHeight: CGFloat = 64
+
     let title: String
     let songs: [Song]
 
+    @State private var currentPage = 0
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacingS) {
+        VStack(alignment: .leading, spacing: Theme.spacingXS) {
             SectionHeader(title: self.title)
-            LazyVStack(spacing: 0) {
-                ForEach(self.songs) { song in
-                    SongRow(song: song, showsLikeButton: false, showsDuration: false)
+
+            GeometryReader { proxy in
+                let pageWidth = max(280, proxy.size.width - Theme.spacingXL * 2)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: Theme.spacingM) {
+                        ForEach(Array(self.columns.enumerated()), id: \.offset) { index, column in
+                            VStack(spacing: 0) {
+                                ForEach(column) { song in
+                                    SongRow(
+                                        song: song,
+                                        showsLikeButton: false,
+                                        showsDuration: true,
+                                        horizontalPadding: 0
+                                    )
+                                        .frame(height: Self.rowHeight)
+                                }
+                            }
+                            .frame(width: pageWidth)
+                            .background {
+                                GeometryReader { pageProxy in
+                                    Color.clear.preference(
+                                        key: HomeRailPageOffsetPreferenceKey.self,
+                                        value: [index: pageProxy.frame(in: .named(self.scrollCoordinateSpace)).minX]
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, Theme.spacingXL)
+                }
+                .coordinateSpace(name: self.scrollCoordinateSpace)
+                .scrollTargetBehavior(.viewAligned)
+                .onPreferenceChange(HomeRailPageOffsetPreferenceKey.self) { offsets in
+                    self.updateCurrentPage(from: offsets)
                 }
             }
+            .frame(height: Self.rowHeight * CGFloat(min(Self.rowsPerColumn, max(1, self.songs.count))))
+
+            if self.columns.count > 1 {
+                HomeRailPageDots(pageCount: self.columns.count, currentPage: self.currentPage)
+                    .padding(.top, Theme.spacingXS)
+            }
         }
+    }
+
+    private var columns: [[Song]] {
+        stride(from: 0, to: self.songs.count, by: Self.rowsPerColumn).map { start in
+            Array(self.songs[start ..< min(start + Self.rowsPerColumn, self.songs.count)])
+        }
+    }
+
+    private var scrollCoordinateSpace: String {
+        "home-song-rail-\(self.title)"
+    }
+
+    private func updateCurrentPage(from offsets: [Int: CGFloat]) {
+        guard let closestPage = offsets.min(by: {
+            abs($0.value - Theme.spacingXL) < abs($1.value - Theme.spacingXL)
+        })?.key else {
+            return
+        }
+
+        self.currentPage = min(max(closestPage, 0), max(0, self.columns.count - 1))
     }
 }
 
-private struct HomeCompactSection: View {
-    let title: String
-    let items: [HomeSectionItem]
+private struct HomeRailPageDots: View {
+    let pageCount: Int
+    let currentPage: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacingS) {
-            SectionHeader(title: self.title)
-            LazyVStack(spacing: 0) {
-                ForEach(self.items) { item in
-                    HomeCompactRow(item: item)
-                }
+        HStack(spacing: 5) {
+            ForEach(0 ..< self.pageCount, id: \.self) { page in
+                Circle()
+                    .fill(page == self.currentPage ? Theme.Colors.accent : Color.secondary.opacity(0.3))
+                    .frame(width: page == self.currentPage ? 6 : 4, height: page == self.currentPage ? 6 : 4)
             }
         }
+        .frame(maxWidth: .infinity)
+        .animation(AppAnimation.quick, value: self.currentPage)
+        .accessibilityHidden(true)
     }
 }
 
-private struct HomeCompactRow: View {
-    let item: HomeSectionItem
+private struct HomeRailPageOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
 
-    var body: some View {
-        switch self.item {
-        case let .song(song):
-            SongRow(song: song, showsLikeButton: false, showsDuration: false)
-        case let .album(album):
-            if let playlist = self.navigationPlaylist(for: album) {
-                NavigationLink(value: playlist) {
-                    self.rowLabel
-                }
-                .buttonStyle(.plain)
-            } else {
-                self.rowLabel
-            }
-        case let .playlist(playlist):
-            NavigationLink(value: playlist) {
-                self.rowLabel
-            }
-            .buttonStyle(.plain)
-        case let .artist(artist):
-            NavigationLink(value: artist) {
-                self.rowLabel
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var rowLabel: some View {
-        HStack(spacing: Theme.spacingM) {
-            ArtworkView(
-                url: self.item.thumbnailURL,
-                targetSize: .init(width: Theme.ArtworkSize.row, height: Theme.ArtworkSize.row),
-                cornerRadius: self.cornerRadius
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: self.cornerRadius, style: .continuous)
-                    .stroke(.white.opacity(0.08), lineWidth: 1)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(self.item.title)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                if let subtitle = self.item.homeCardSubtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, Theme.spacingXL)
-        .padding(.vertical, Theme.spacingS)
-        .contentShape(Rectangle())
-    }
-
-    private var cornerRadius: CGFloat {
-        if case .artist = self.item {
-            Theme.ArtworkSize.row / 2
-        } else {
-            Theme.cornerRadiusS
-        }
-    }
-
-    private func navigationPlaylist(for album: Album) -> Playlist? {
-        guard album.hasNavigableId else { return nil }
-        return Playlist(
-            id: album.id,
-            title: album.title,
-            description: nil,
-            thumbnailURL: album.thumbnailURL,
-            trackCount: album.trackCount
-        )
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }

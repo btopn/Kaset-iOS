@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Theme
 
@@ -11,9 +12,10 @@ enum Theme {
     // MARK: - Colors
 
     enum Colors {
-        static let background = Color(red: 0.08, green: 0.08, blue: 0.08)
-        static let surfaceStrong = Color.white.opacity(0.14)
-        static let glassTint = Color.white.opacity(0.16)
+        static let background = Color(uiColor: .systemBackground)
+        static let surface = Color(uiColor: .secondarySystemBackground)
+        static let surfaceStrong = Color(uiColor: .tertiarySystemFill)
+        static let glassTint = Color.primary.opacity(0.14)
         static let accent = Color(red: 1.0, green: 0.06, blue: 0.32)
     }
 

@@ -11,6 +11,10 @@ struct RootView: View {
     @Environment(\.client) private var client
 
     @State private var selectedTab: TabItem = .home
+    @State private var homePath = NavigationPath()
+    @State private var explorePath = NavigationPath()
+    @State private var searchPath = NavigationPath()
+    @State private var libraryPath = NavigationPath()
     @State private var isNowPlayingPresented = false
     @Namespace private var playerTransition
 
@@ -40,7 +44,14 @@ struct RootView: View {
     @ViewBuilder
     private func mainContent(client: any YTMusicClientProtocol) -> some View {
         ZStack(alignment: .bottom) {
-            RootTabView(selection: self.$selectedTab, client: client)
+            RootTabView(
+                selection: self.$selectedTab,
+                homePath: self.$homePath,
+                explorePath: self.$explorePath,
+                searchPath: self.$searchPath,
+                libraryPath: self.$libraryPath,
+                client: client
+            )
                 .hostingPlaylistCoordinators()
                 .environment(\.presentNowPlaying) {
                     withAnimation(AppAnimation.spring) {
@@ -70,8 +81,29 @@ struct RootView: View {
             }
         }
         .background(Theme.Colors.background.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+        .environment(\.openArtistPage) { artist in
+            self.openArtistPage(artist)
+        }
         .tint(Theme.Colors.accent)
         .animation(AppAnimation.spring, value: self.isNowPlayingPresented)
+    }
+
+    private func openArtistPage(_ artist: Artist) {
+        guard artist.hasNavigableId else { return }
+
+        withAnimation(AppAnimation.spring) {
+            self.isNowPlayingPresented = false
+        }
+
+        switch self.selectedTab {
+        case .home:
+            self.homePath.append(artist)
+        case .explore:
+            self.explorePath.append(artist)
+        case .search:
+            self.searchPath.append(artist)
+        case .library:
+            self.libraryPath.append(artist)
+        }
     }
 }

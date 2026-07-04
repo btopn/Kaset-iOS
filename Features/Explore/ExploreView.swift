@@ -5,7 +5,7 @@ import SwiftUI
 /// The Explore feed: new releases, charts, moods. Mirrors HomeView's layout.
 struct ExploreView: View {
     @State var viewModel: ExploreViewModel
-    @State private var navigationPath = NavigationPath()
+    @Binding var navigationPath: NavigationPath
 
     var body: some View {
         NavigationStack(path: self.$navigationPath) {

@@ -8,8 +8,8 @@ import SwiftUI
 /// `SectionShelf`/cards for the rest.
 struct SearchView: View {
     @State var viewModel: SearchViewModel
+    @Binding var navigationPath: NavigationPath
     @Environment(PlayerService.self) private var playerService
-    @State private var navigationPath = NavigationPath()
 
     var body: some View {
         NavigationStack(path: self.$navigationPath) {
@@ -150,16 +150,17 @@ struct SearchView: View {
                     Button {
                         self.viewModel.selectedFilter = filter
                     } label: {
+                        let isSelected = self.viewModel.selectedFilter == filter
                         Text(filter.displayName)
-                            .font(.subheadline.weight(self.viewModel.selectedFilter == filter ? .semibold : .regular))
-                            .foregroundStyle(self.viewModel.selectedFilter == filter ? .white : .primary)
+                            .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                            .foregroundStyle(isSelected ? .white : .primary)
                             .padding(.horizontal, Theme.spacingM)
                             .padding(.vertical, Theme.spacingS)
-                            .compatGlass(
-                                interactive: true,
-                                tint: self.viewModel.selectedFilter == filter ? Theme.Colors.accent.opacity(0.42) : Theme.Colors.glassTint,
-                                in: .capsule
-                            )
+                            .background(isSelected ? Theme.Colors.accent : Theme.Colors.surfaceStrong, in: Capsule())
+                            .overlay {
+                                Capsule()
+                                    .stroke(Color.primary.opacity(isSelected ? 0 : 0.08), lineWidth: 1)
+                            }
                     }
                     .buttonStyle(.plain)
                 }

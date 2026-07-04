@@ -136,7 +136,7 @@ struct SectionCard: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, Theme.spacingS)
                         .padding(.vertical, Theme.spacingXS)
-                        .compatGlass(tint: Theme.Colors.glassTint, in: .capsule)
+                        .background(.black.opacity(0.48), in: Capsule())
                         .padding(Theme.spacingS)
                 }
 
@@ -145,7 +145,7 @@ struct SectionCard: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 38, height: 38)
-                        .compatGlass(interactive: false, tint: Theme.Colors.glassTint, in: .circle)
+                        .background(.black.opacity(0.48), in: Circle())
                         .padding(Theme.spacingS)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 }
@@ -158,7 +158,7 @@ struct SectionCard: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                if let subtitle = self.item.subtitle {
+                if let subtitle = self.item.homeCardSubtitle {
                     Text(subtitle)
                         .font(.footnote)
                         .foregroundStyle(.secondary)

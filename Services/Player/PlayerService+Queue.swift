@@ -43,7 +43,7 @@ extension PlayerService {
         self.mixContinuationToken = nil
 
         // Start with just this song in the queue
-        self.setQueue([song])
+        self.setQueue([song], source: .added)
         self.queueOrderBeforeShuffle = nil
         self.currentIndex = 0
         await self.play(song: song)
@@ -86,7 +86,7 @@ extension PlayerService {
             let shuffledSongs = result.songs.shuffled()
 
             // Set up the queue and play the first song
-            self.setQueue(shuffledSongs)
+            self.setQueue(shuffledSongs, source: .radio)
             self.queueOrderBeforeShuffle = nil
             self.currentIndex = 0
             self.currentTrack = shuffledSongs[0]
@@ -132,7 +132,7 @@ extension PlayerService {
             let newSongs = result.songs.filter { !existingIds.contains($0.videoId) }
 
             if !newSongs.isEmpty {
-                let updatedEntries = self.queueEntries + newSongs.map { QueueEntry(id: UUID(), song: $0) }
+                let updatedEntries = self.queueEntries + newSongs.map { QueueEntry(id: UUID(), song: $0, source: .radio) }
                 self.setQueue(entries: updatedEntries)
                 self.logger.info("Added \(newSongs.count) new songs to queue, total: \(self.queue.count)")
                 self.saveQueueForPersistence()
@@ -193,7 +193,9 @@ extension PlayerService {
 
             self.clearForwardSkipNavigationStack()
             self.recordQueueStateForUndo()
-            let entries = newQueue.map { QueueEntry(id: UUID(), song: $0) }
+            let entries = newQueue.enumerated().map { index, song in
+                QueueEntry(id: UUID(), song: song, source: index == 0 ? .added : .radio)
+            }
             if self.shuffleEnabled {
                 self.materializeShuffleQueue(
                     entries: entries,
@@ -240,8 +242,12 @@ extension PlayerService {
             return
         }
         // Keep only the current track
-        let currentEntryID = self.queueEntryIDs[safe: self.currentIndex]
-        self.setQueue([currentTrack], entryIDs: currentEntryID.map { [$0] })
+        if let currentEntry = self.queueEntries[safe: self.currentIndex] {
+            self.setQueue(entries: [currentEntry])
+        } else {
+            let currentEntryID = self.queueEntryIDs[safe: self.currentIndex]
+            self.setQueue([currentTrack], entryIDs: currentEntryID.map { [$0] })
+        }
         self.queueOrderBeforeShuffle = nil
         self.currentIndex = 0
         self.logger.info("Queue cleared, keeping current track")
@@ -269,7 +275,7 @@ extension PlayerService {
         self.recordQueueStateForUndo()
         let insertIndex = min(self.currentIndex + 1, self.queue.count)
         var updatedEntries = self.queueEntries
-        updatedEntries.insert(contentsOf: songs.map { QueueEntry(id: UUID(), song: $0) }, at: insertIndex)
+        updatedEntries.insert(contentsOf: songs.map { QueueEntry(id: UUID(), song: $0, source: .added) }, at: insertIndex)
         self.setQueue(entries: updatedEntries)
         self.logger.info("Inserted \(songs.count) songs at position \(insertIndex)")
         self.saveQueueForPersistence()
@@ -483,6 +489,41 @@ extension PlayerService {
         self.saveQueueForPersistence()
     }
 
+    /// Reorders only the entries visible in one grouped queue section.
+    func reorderQueue(inGroupWith entryIDs: [UUID], from source: IndexSet, to destination: Int) {
+        guard !entryIDs.isEmpty else { return }
+        let groupEntryIDs = Set(entryIDs)
+        let movingEntryIDs = Set(source.compactMap { entryIDs[safe: $0] })
+
+        guard self.currentQueueEntryID.map({ !movingEntryIDs.contains($0) }) ?? true else {
+            self.logger.warning("Cannot reorder: cannot move current track")
+            return
+        }
+
+        var groupedEntries = entryIDs.compactMap { id in
+            self.queueEntries.first(where: { $0.id == id })
+        }
+        groupedEntries.move(fromOffsets: source, toOffset: destination)
+
+        var groupedIterator = groupedEntries.makeIterator()
+        let updatedEntries = self.queueEntries.map { entry in
+            groupEntryIDs.contains(entry.id) ? groupedIterator.next() ?? entry : entry
+        }
+
+        self.clearForwardSkipNavigationStack()
+        self.recordQueueStateForUndo()
+        let currentEntryID = self.currentQueueEntryID
+        self.setQueue(entries: updatedEntries)
+        if let currentEntryID,
+           let newCurrentIndex = updatedEntries.firstIndex(where: { $0.id == currentEntryID })
+        {
+            self.currentIndex = newCurrentIndex
+        }
+
+        self.logger.info("Queue group reordered")
+        self.saveQueueForPersistence()
+    }
+
     /// Reorders the queue based on a new order of video IDs.
     /// - Parameter videoIds: The new order of video IDs.
     func reorderQueue(videoIds: [String]) {
@@ -613,7 +654,7 @@ extension PlayerService {
     func appendToQueue(_ songs: [Song]) {
         guard !songs.isEmpty else { return }
         self.recordQueueStateForUndo()
-        self.setQueue(entries: self.queueEntries + songs.map { QueueEntry(id: UUID(), song: $0) })
+        self.setQueue(entries: self.queueEntries + songs.map { QueueEntry(id: UUID(), song: $0, source: .added) })
         self.logger.info("Appended \(songs.count) songs to queue")
         self.saveQueueForPersistence()
     }
@@ -623,6 +664,7 @@ extension PlayerService {
     /// Serialized playback session persisted across launches.
     private struct PersistedPlaybackSession: Codable {
         let queue: [Song]
+        let sources: [QueueEntrySource]?
         let currentIndex: Int
         let currentVideoId: String?
         let progress: TimeInterval
@@ -656,6 +698,7 @@ extension PlayerService {
             let sessionData = try encoder.encode(
                 PersistedPlaybackSession(
                     queue: queue,
+                    sources: self.queueEntries.map(\.source),
                     currentIndex: safeIndex,
                     currentVideoId: currentVideoId,
                     progress: clampedProgress,
@@ -695,6 +738,7 @@ extension PlayerService {
 
                 self.applyRestoredPlaybackSession(
                     queue: savedSession.queue,
+                    sources: savedSession.sources,
                     currentIndex: resolvedIndex,
                     progress: savedSession.progress,
                     duration: savedSession.duration
@@ -744,6 +788,7 @@ extension PlayerService {
 
             self.applyRestoredPlaybackSession(
                 queue: savedQueue,
+                sources: nil,
                 currentIndex: resolvedIndex,
                 progress: 0,
                 duration: restoredDuration
@@ -861,7 +906,11 @@ extension PlayerService {
                 // Update the queue in-place
                 if index < queue.count, queue[index].videoId == videoId {
                     var updatedEntries = self.queueEntries
-                    updatedEntries[index] = QueueEntry(id: updatedEntries[index].id, song: enrichedSong)
+                    updatedEntries[index] = QueueEntry(
+                        id: updatedEntries[index].id,
+                        song: enrichedSong,
+                        source: updatedEntries[index].source
+                    )
                     self.setQueue(entries: updatedEntries)
                     self.logger.debug("Enriched song \(index): '\(enrichedSong.title)' - artists: \(enrichedSong.artistsDisplay)")
                 }

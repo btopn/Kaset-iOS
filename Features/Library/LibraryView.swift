@@ -8,8 +8,8 @@ import SwiftUI
 /// opens playlist/artist detail on tap.
 struct LibraryView: View {
     @State var viewModel: LibraryViewModel
+    @Binding var navigationPath: NavigationPath
     @Environment(\.client) private var client
-    @State private var navigationPath = NavigationPath()
 
     var body: some View {
         NavigationStack(path: self.$navigationPath) {

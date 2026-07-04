@@ -69,66 +69,55 @@ enum HomeSectionItem: Identifiable {
 
     var homeCardSubtitle: String? {
         guard let subtitle else { return nil }
-        return Self.bulletSeparatedSubtitle(subtitle) ?? Self.viewCountSubtitle(subtitle) ?? Self.reorderedMediaSubtitle(subtitle) ?? subtitle
-    }
-
-    private static func bulletSeparatedSubtitle(_ subtitle: String) -> String? {
-        guard subtitle.contains(" • ") else { return nil }
-        return subtitle.replacingOccurrences(of: " • ", with: " - ")
-    }
-
-    private static func viewCountSubtitle(_ subtitle: String) -> String? {
-        let components = Self.subtitleComponents(subtitle)
-        guard components.count > 1,
-              components.last?.lowercased().contains("views") == true
-        else {
-            return nil
-        }
-
-        let name = components.dropLast().joined(separator: ", ")
-        return "\(name) - \(components[components.count - 1])"
-    }
-
-    private static func reorderedMediaSubtitle(_ subtitle: String) -> String? {
-        let components = Self.subtitleComponents(subtitle)
-
-        guard components.count > 1,
-              let mediaType = Self.normalizedLeadingMediaType(components[0])
-        else {
-            return nil
-        }
-
-        return "\(components.dropFirst().joined(separator: ", ")) - \(mediaType)"
+        return Self.cleanedHomeCardSubtitle(subtitle)
     }
 
     private static func subtitleComponents(_ subtitle: String) -> [String] {
         subtitle
+            .replacingOccurrences(of: " • ", with: ",")
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
 
-    private static func normalizedLeadingMediaType(_ value: String) -> String? {
-        switch value.lowercased() {
-        case "album":
-            "Album"
-        case "song":
-            "Song"
-        case "single":
-            "Single"
-        case "ep":
-            "EP"
-        case "playlist":
-            "Playlist"
-        case "podcast":
-            "Podcast"
-        case "episode":
-            "Episode"
-        case "video":
-            "Video"
-        default:
-            nil
+    private static func cleanedHomeCardSubtitle(_ subtitle: String) -> String? {
+        var components = Self.subtitleComponents(subtitle)
+
+        while let first = components.first, Self.isLeadingMetadataLabel(first) {
+            components.removeFirst()
         }
+
+        guard !components.isEmpty else { return nil }
+
+        if components.count > 1,
+           let count = components.last,
+           Self.isCountMetadata(count)
+        {
+            let name = components.dropLast().joined(separator: ", ")
+            return "\(name) · \(count)"
+        }
+
+        let result = components.joined(separator: ", ")
+        return result.isEmpty ? nil : result
+    }
+
+    private static func isLeadingMetadataLabel(_ value: String) -> Bool {
+        switch value.lowercased() {
+        case "album", "artist", "song", "single", "ep", "playlist", "podcast", "episode", "video":
+            true
+        default:
+            false
+        }
+    }
+
+    private static func isCountMetadata(_ value: String) -> Bool {
+        let lowercased = value.lowercased()
+        let hasNumber = lowercased.rangeOfCharacter(from: .decimalDigits) != nil
+        return lowercased.contains("views")
+            || (hasNumber && lowercased.contains("song"))
+            || (hasNumber && lowercased.contains("track"))
+            || (hasNumber && lowercased.contains("album"))
+            || (hasNumber && lowercased.contains("subscriber"))
     }
 
     var thumbnailURL: URL? {

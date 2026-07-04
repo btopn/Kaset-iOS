@@ -63,8 +63,9 @@ struct PlayerControls: View {
             Image(systemName: self.playerService.isPlaying ? "pause.fill" : "play.fill")
                 .font(.system(size: self.size.primary * 0.5, weight: .semibold))
                 .frame(width: self.size.primary, height: self.size.primary)
-                .foregroundStyle(self.size == .large ? Theme.Colors.accent : .white)
-                .compatGlass(interactive: true, tint: self.primaryButtonTint, in: .circle)
+                .foregroundStyle(.white)
+                .background(Theme.Colors.accent, in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
@@ -91,11 +92,6 @@ struct PlayerControls: View {
         }
         .buttonStyle(.plain)
     }
-
-    private var primaryButtonTint: Color {
-        self.size == .large ? Theme.Colors.glassTint : Theme.Colors.accent.opacity(0.48)
-    }
-
     private var repeatSymbol: String {
         switch self.playerService.repeatMode {
         case .off, .all: "repeat"
